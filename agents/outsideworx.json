@@ -1,0 +1,24 @@
+{
+  "name": "Outside Worx",
+  "description": "Manages the outsideworx services and sites infrastructure",
+  "tools": [
+    "fs_read",
+    "fs_write",
+    "execute_bash",
+    "use_aws",
+    "introspect",
+    "knowledge",
+    "grep",
+    "glob",
+    "code",
+    "subagent",
+    "todo_list"
+  ],
+  "allowedTools": [
+    "*"
+  ],
+  "resources": [
+    "file://.kiro/prompts/**/*.md",
+    "file://.kiro/steering/**/*.md"
+  ]
+}
