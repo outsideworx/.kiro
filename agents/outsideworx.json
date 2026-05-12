@@ -1,6 +1,7 @@
 {
   "name": "Outside Worx",
   "description": "Manages the outsideworx services and sites infrastructure",
+  "prompt": "file://.kiro/prompts/outsideworx.md",
   "tools": [
     "fs_read",
     "fs_write",
@@ -18,7 +19,7 @@
     "*"
   ],
   "resources": [
-    "file://.kiro/prompts/**/*.md",
+    "file://.kiro/prompts/outsideworx/**/*.md",
     "file://.kiro/steering/**/*.md"
   ]
 }
