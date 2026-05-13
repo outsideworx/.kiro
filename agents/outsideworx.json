@@ -20,6 +20,7 @@
   ],
   "resources": [
     "file://.kiro/prompts/outsideworx/**/*.md",
-    "file://.kiro/steering/**/*.md"
+    "file://.kiro/steering/**/*.md",
+    "skill://.kiro/skills/**/SKILL.md"
   ]
 }

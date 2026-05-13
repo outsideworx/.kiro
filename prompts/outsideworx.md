@@ -24,8 +24,16 @@ The following prompt files provide detailed documentation for each subsystem:
 
 | File | Purpose |
 |------|---------|
+| `steering/conventions.md` | Coding conventions — Ordering rules, Java style, YAML structures, tests |
 | `steering/notes.md` | Persistent instructions (e.g., how to handle "remember this") |
 | `steering/changelog.md` | Running log of decisions and changes across sessions |
+
+## Skills (on-demand)
+
+| File | Use when |
+|------|----------|
+| `skills/liquibase/SKILL.md` | Creating or modifying database tables, sequences, or triggers |
+| `skills/httpd/SKILL.md` | Modifying the shared sites Dockerfile, security headers, proxy config, or rate limits |
 
 ## Key Facts
 
@@ -35,3 +43,9 @@ The following prompt files provide detailed documentation for each subsystem:
 - All images pushed to GHCR (`ghcr.io/outsideworx/<name>:latest`)
 - Deployment is always manual (`workflow_dispatch`)
 - Prod domains are real TLDs; test uses `*.localhost`
+- Seven static sites, three with API tokens (come-in-and-find-out, gaiapeeps, soupart)
+- Auth: Authelia OIDC for admin portal, static token headers (`X-Auth-Token` + `X-Caller-Id`) for API
+- Monitoring: Prometheus scrapes all services, Loki/Promtail for logs, ntfy for notifications, Grafana for dashboards
+- All config has prod/test variants; test uses Docker Compose (not Swarm), trust auth, permissive CORS, `*.localhost` domains
+- Deploy host: `services.outsideworx.net` (both stacks deploy to the same server)
+
