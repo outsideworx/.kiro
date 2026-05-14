@@ -124,8 +124,11 @@ Simple deployment — no Swarm init needed (uses the network created by services
 | `APP_CLIENTS_CIAFO_TOKEN` | come-in-and-find-out | API auth token (injected as `TOKEN`) |
 | `APP_CLIENTS_PEEPS_TOKEN` | gaiapeeps | API auth token (injected as `TOKEN`) |
 | `APP_CLIENTS_SOUP_TOKEN` | soupart | API auth token (injected as `TOKEN`) |
+| `HTPASSWD_THEGREEN` | outsideworx | htpasswd line for Basic Auth (injected as `HTPASSWD`) |
 
 Only sites that call the API need a token. Sites without API calls (duckumbrella, igli, outsideworx, soupkitchen) have no `TOKEN` environment variable.
+
+Sites with `HTPASSWD` set get Apache Basic Auth — the entrypoint writes the hash to `.htpasswd` and enables auth. Metrics and robots.txt are excluded.
 
 ## Prod vs Test
 
