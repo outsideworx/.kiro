@@ -7,7 +7,7 @@ description: Apache httpd configuration conventions for the sites Dockerfile. Us
 
 ## Overview
 
-All seven sites share a single `Dockerfile` (prod) and `Dockerfile.test` (test). Apache config is generated inline via `RUN cat <<'EOF'` blocks — there are no external `.conf` files checked into the repo (except `blacklist.conf`).
+All sites share a single `Dockerfile` (prod) and `Dockerfile.test` (test). Apache config is generated inline via `RUN cat <<'EOF'` blocks — there are no external `.conf` files checked into the repo (except `blacklist.conf`).
 
 ## Image
 

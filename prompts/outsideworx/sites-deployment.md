@@ -2,7 +2,7 @@
 
 ## Overview
 
-The sites stack serves seven static websites, each built into its own Apache httpd container from a shared Dockerfile. All sites proxy API calls back to the services stack.
+The sites stack serves multiple static websites, each built into its own Apache httpd container from a shared Dockerfile. All sites proxy API calls back to the services stack.
 
 ## Architecture
 
@@ -16,7 +16,7 @@ Each site is a separate GitHub repository containing static HTML/CSS/JS (often H
 
 ## Dockerfile (Multi-Site, Single Template)
 
-The same `Dockerfile` builds all seven sites. The `NAME` build arg determines which site repo to clone.
+The same `Dockerfile` builds all sites. The `NAME` build arg determines which site repo to clone.
 
 ### Build Stages
 
@@ -147,7 +147,7 @@ Only sites that call the API need a token. Sites without API calls (duckumbrella
 
 ### Build Triggers
 
-1. **Push to main** — Matrix build: builds all 7 sites in parallel, pushes to GHCR
+1. **Push to main** — Matrix build: builds all sites in parallel, pushes to GHCR
 2. **repository_dispatch** — Triggered by individual site repos when they update; builds only the changed site
 
 ### Dispatch Payload

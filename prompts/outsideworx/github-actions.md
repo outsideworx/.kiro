@@ -47,7 +47,7 @@ Two jobs, mutually exclusive:
 #### `build-sites` (push to main)
 
 - Trigger: push to `main` branch
-- Strategy: matrix over all 7 site names
+- Strategy: matrix over all site names
 - Steps: checkout → Docker login → build + push with `NAME` build arg
 - Images: `ghcr.io/outsideworx/<name>:latest`
 
@@ -66,16 +66,20 @@ Two jobs, mutually exclusive:
 
 ## Cross-Repo Dispatch Pattern
 
-Individual site repos trigger a rebuild of their image in the sites repo:
+Individual site repos trigger a rebuild of their image in the sites repo via `actions/github-script`:
 
 ```yaml
-# In a site repo's workflow:
-- uses: peter-evans/repository-dispatch@v3
+# In a site repo's .github/workflows/build.yaml:
+- uses: actions/github-script@v7
   with:
-    token: ${{ secrets.DISPATCH_TOKEN }}
-    repository: outsideworx/sites
-    event-type: build-<name>
-    client-payload: '{"name": "<name>"}'
+    github-token: ${{ secrets.DISPATCH_TOKEN }}
+    script: |
+      await github.rest.repos.createDispatchEvent({
+        owner: 'outsideworx',
+        repo: 'sites',
+        event_type: 'build-<name>',
+        client_payload: { name: '<name>' }
+      })
 ```
 
 This allows site content changes to trigger a Docker rebuild without touching the sites repo.
@@ -94,10 +98,38 @@ This allows site content changes to trigger a Docker rebuild without touching th
 | Action | Version | Purpose |
 |--------|---------|---------|
 | `actions/checkout` | v4 | Clone repo |
+| `actions/github-script` | v7 | Cross-repo dispatch (site repos → sites build) |
 | `actions/setup-java` | v4 | Install Temurin JDK 25 |
-| `docker/login-action` | v3 | Authenticate to GHCR |
-| `docker/build-push-action` | v6 | Build and push Docker image |
 | `appleboy/ssh-action` | v1 | Execute deploy script via SSH |
+| `docker/build-push-action` | v6 | Build and push Docker image |
+| `docker/login-action` | v3 | Authenticate to GHCR |
+
+## Site Repo Workflow Pattern
+
+Each site repo has a single workflow (`.github/workflows/build.yaml`) that dispatches to the sites repo on push to `main`. The structure is identical across all sites — only the `event_type` and `name` values differ:
+
+```yaml
+name: Build
+on:
+  push:
+    branches: [main]
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DISPATCH_TOKEN }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'outsideworx',
+              repo: 'sites',
+              event_type: 'build-<name>',
+              client_payload: { name: '<name>' }
+            })
+```
+
+No checkout, no build step — the site repo only signals the sites repo to rebuild. The actual Docker build (cloning the site content) happens in the sites repo's `build.yaml`.
 
 ## Conventions
 
