@@ -19,7 +19,6 @@ The following prompt files provide detailed documentation for each subsystem:
 | `networking.md` | Overlay network, Swarm VIP DNS, network aliases, hostname conventions, service communication graph |
 | `github-actions.md` | CI/CD pipelines — verify, build, deploy workflows for both repos |
 | `python-utils.md` | Sidecar scripts — image cache sync, operational shell scripts |
-| `new-user.md` | Procedure for onboarding a new user across Authelia, ntfy, and the Spring Boot portal |
 
 ## Steering
 
@@ -33,8 +32,10 @@ The following prompt files provide detailed documentation for each subsystem:
 
 | File | Use when |
 |------|----------|
-| `skills/liquibase/SKILL.md` | Creating or modifying database tables, sequences, or triggers |
+| `skills/admin-portal/SKILL.md` | Creating or modifying client admin views (Thymeleaf templates, ModelVisitor controllers) |
 | `skills/httpd/SKILL.md` | Modifying the shared sites Dockerfile, security headers, proxy config, or rate limits |
+| `skills/liquibase/SKILL.md` | Creating or modifying database tables, sequences, or triggers |
+| `skills/new-client/SKILL.md` | Onboarding a new client — Authelia, API wiring, Spring Boot code, compose config |
 
 ## Key Facts
 
