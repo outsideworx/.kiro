@@ -25,7 +25,7 @@ The following prompt files provide detailed documentation for each subsystem:
 | File | Purpose |
 |------|---------|
 | `steering/coding-conventions.md` | Coding conventions — Ordering rules, Java style, YAML structures, tests |
-| `steering/ways-of-working.md` | How the agent should behave — ask before acting, minimal responses, changelog |
+| `steering/ways-of-working.md` | How the agent should behave — ask before acting, minimal responses, changelog management |
 | `steering/changelog.md` | Running log of decisions and changes across sessions |
 
 ## Skills (on-demand)
