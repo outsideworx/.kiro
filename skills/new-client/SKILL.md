@@ -176,6 +176,26 @@ If the client has its own site (not hosted under an existing domain), wire it in
 - `sites/compose-test.yaml` — add service entry with Traefik labels
 - `sites/.github/workflows/build.yaml` — add `build-<name>` to `repository_dispatch.types` and `<name>` to the matrix
 
+### 7. Gate Password (Optional — WIP Sites)
+
+For sites that need a simple password barrier on a specific path (see `sites-deployment.md` for how the mechanism works), add the following to the sites repo:
+
+In `sites/compose.yaml`, add to the site service environment:
+
+```yaml
+environment:
+  GATE_PASSWORD: $GATE_PASSWORD_<UPPER>
+  GATE_PATH: "<path>"
+```
+
+In `sites/.env`:
+
+```
+GATE_PASSWORD_<UPPER>=<password>
+```
+
+The services repo is not involved.
+
 ## Naming Conventions
 
 | Item | Format | Example |
