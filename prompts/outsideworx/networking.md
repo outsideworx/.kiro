@@ -29,9 +29,13 @@ Examples: `services_postgres`, `services_authelia`, `sites_soupart`
 
 This name resolves globally across all nodes in the Swarm — any container on the `outsideworx` network can reach any other service by its VIP DNS name regardless of which node the target runs on.
 
-## Network Aliases (Java URI Compatibility)
+## Network Aliases (Java/Spring Boot RFC Compliance)
 
-Java's `URI` class rejects underscores in hostnames (RFC 3986). The Spring Boot app needs to reach `postgres` and `authelia` via JDBC and HTTP respectively, so these two services have dash-format aliases:
+Java and Spring Boot strictly enforce RFC 3986, which forbids underscores in hostnames. This affects the Spring Boot app in two directions — both when it calls other services and when it receives requests. All aliases exist solely because of this strict compliance; no other service in the stack has this problem.
+
+### Outbound Aliases
+
+The Spring Boot app needs to *call out* to `postgres` (JDBC) and `authelia` (OIDC HTTP). Java's `URI` class rejects the underscore VIP names, so these services have dash-format aliases that the app uses in `application.yaml`:
 
 ```yaml
 # compose.yaml
@@ -48,11 +52,24 @@ postgres:
         - services-postgres
 ```
 
-**Only these two services have aliases** — they are the only ones referenced from Java code (`application.yaml`). All other consumers (Grafana, Prometheus, Promtail, cache.py, postgres-exporter, sites) use the underscore VIP DNS format directly, which is valid for non-Java HTTP clients.
+### Inbound Alias
+
+The Spring Boot app *receives* scrape requests from Prometheus. When Prometheus targets `services_services:81`, it sends `Host: services_services` in the request header. Spring Boot's host header validation rejects the underscore. The alias on the services container itself gives Prometheus a valid hostname to use:
+
+```yaml
+# compose.yaml
+services:
+  networks:
+    outsideworx:
+      aliases:
+        - services-services
+```
+
+Prometheus scrape config uses `services-services:81` as the target.
 
 ### Why Not Aliases Everywhere?
 
-Aliases are task-scoped in Swarm — they only resolve on the node where the container's task runs. VIP DNS names resolve globally. Using aliases for Promtail (deployed in `global` mode) would break resolution on worker nodes. The underscore format works for everything except Java's URI parser.
+Aliases are task-scoped in Swarm — they only resolve on the node where the container's task runs. VIP DNS names resolve globally. Using aliases for Promtail (deployed in `global` mode) would break resolution on worker nodes. The underscore format works for everything except Java/Spring Boot's strict RFC compliance.
 
 ## Hostname Conventions
 
@@ -60,6 +77,7 @@ Aliases are task-scoped in Swarm — they only resolve on the node where the con
 |---------|--------|---------|
 | Prod config referencing a service | `<stack>_<service>` | `services_postgres`, `services_loki` |
 | Java code (application.yaml) | `services-<service>` (alias) | `services-postgres`, `services-authelia` |
+| Prometheus scraping Spring Boot | `services-services` (alias) | `services-services:81` |
 | Test config (Docker Compose) | Short container name | `postgres`, `authelia`, `loki` |
 | Test config (host services) | `localhost` or `host.docker.internal` | `localhost:5432`, `host.docker.internal:81` |
 
@@ -158,7 +176,7 @@ networks:
 | prometheus | services_ntfy | HTTP :81 | Metrics scrape |
 | prometheus | services_postgres-exporter | HTTP :80 | Metrics scrape |
 | prometheus | services_promtail | HTTP :80 | Metrics scrape |
-| prometheus | services_services | HTTP :81 | Metrics scrape (actuator) |
+| prometheus | services-services (alias) | HTTP :81 | Metrics scrape (actuator) |
 | prometheus | services_traefik | HTTP :81 | Metrics scrape |
 | prometheus | sites_* | HTTP :80 | Metrics scrape (all sites) |
 | promtail | services_loki | HTTP :80 | Log push (`/loki/api/v1/push`) |
@@ -202,7 +220,7 @@ networks:
 
 1. **Never use short names in prod configs** — always `<stack>_<service>` format
 2. **Never use `services_` prefix in test configs** — always short container names
-3. **Only add network aliases when Java code needs to reach the service** — currently only `authelia` and `postgres`
+3. **Only add network aliases when Java/Spring Boot is involved** — outbound (`authelia`, `postgres`) or inbound (`services` itself)
 4. **Aliases are task-scoped** — they don't resolve across nodes; VIP DNS does
 5. **All services share one flat network** — no network segmentation, no service-specific networks
 6. **Loki uses port 80 in prod, 3100 in test** — test exposes 3100 to host for debugging
