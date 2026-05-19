@@ -124,11 +124,74 @@ Simple deployment — no Swarm init needed (uses the network created by services
 | `APP_CLIENTS_CIAFO_TOKEN` | come-in-and-find-out | API auth token (injected as `TOKEN`) |
 | `APP_CLIENTS_PEEPS_TOKEN` | gaiapeeps | API auth token (injected as `TOKEN`) |
 | `APP_CLIENTS_SOUP_TOKEN` | soupart | API auth token (injected as `TOKEN`) |
-| `APP_CLIENTS_THEGREEN_SECRET` | outsideworx | Client secret for cookie-based access gate (injected as `CLIENT_SECRET`) |
+| `APP_CLIENTS_THEGREEN_SECRET` | outsideworx | Client secret for cookie-based access control (injected as `CLIENT_SECRET`) |
 
 Only sites that call the API need a token. Sites without API calls (duckumbrella, igli, outsideworx, soupkitchen) have no `TOKEN` environment variable.
 
-Sites with `CLIENT_SECRET` and `CLIENT_SECRET_PATH` set get a cookie-based access gate. This is a lightweight protection mechanism for work-in-progress sites that need to share demo URLs with clients without exposing unfinished content to the public. The entrypoint generates a Lua script that intercepts requests to the configured path, serves a simple secret prompt, and sets a session cookie on success. Subsequent requests with the cookie bypass the gate. No server-side session storage is needed — the cookie itself is the proof of access. This avoids the overhead of full OAuth2 for sites that just need a simple "enter secret to view" barrier during development.
+## Client Secret Access Control
+
+A lightweight protection mechanism for work-in-progress sites that need to share demo URLs with clients without exposing unfinished content to the public. Avoids the overhead of full OAuth2 — just "enter secret to view."
+
+### How It Works
+
+```
+Request to ${CLIENT_SECRET_PATH}page
+        │
+        ▼
+LuaHookAccessChecker (secret.lua)
+        │
+        ├── Has cookie access_token=granted? → Pass through (DECLINED)
+        │
+        └── No cookie → 302 redirect to ${CLIENT_SECRET_PATH}secret
+                                │
+                                ▼
+                        Renders HTML form (dark-themed, password input)
+                                │
+                                ▼ POST
+                        Compare submitted password to CLIENT_SECRET
+                                │
+                        ├── Match → Set cookie, 302 to protected path
+                        └── Mismatch → Re-render form with error
+```
+
+The template (`secret.lua.tpl`) has two placeholders: `{{CLIENT_SECRET}}` and `{{CLIENT_SECRET_PATH}}`.
+
+- **Cookie attributes**: `HttpOnly` (no JS access), `SameSite=Strict` (no CSRF), `Path={CLIENT_SECRET_PATH}` (scoped to protected path)
+- **No `Secure` flag**: works on HTTP in test mode
+- **Session cookie**: no `Max-Age` or `Expires` — cleared when browser closes
+- **No server-side state**: the cookie itself is the proof of access
+
+At container startup, the entrypoint script (`docker-entrypoint.sh`) checks for `CLIENT_SECRET`:
+
+1. If set: runs `sed` on `secret.lua.tpl` to inject `CLIENT_SECRET` and `CLIENT_SECRET_PATH`, producing `/usr/local/apache2/conf/secret.lua`
+2. Generates `conf/extra/httpd-auth.conf` with:
+   ```apache
+   <Location "${CLIENT_SECRET_PATH}">
+       LuaHookAccessChecker /usr/local/apache2/conf/secret.lua check_access
+   </Location>
+   ```
+3. If not set: writes `# No auth` to `httpd-auth.conf` (no-op include)
+
+Requires `mod_lua` (enabled in both Dockerfiles via `sed`).
+
+### Configuration
+
+Compose environment variables on the site service:
+
+```yaml
+environment:
+  CLIENT_SECRET: $APP_CLIENTS_<CLIENT>_SECRET
+  CLIENT_SECRET_PATH: "/path/to/protect/"
+```
+
+The path **must** end with `/`. All requests under that path require the secret.
+
+### Adding Client Secret to Another Site
+
+1. Add `CLIENT_SECRET` and `CLIENT_SECRET_PATH` to the site's environment in `compose.yaml`
+2. Add the same in `compose-test.yaml` (hardcoded value for local dev)
+3. Add `APP_CLIENTS_<CLIENT>_SECRET=<value>` to both `sites/.env` and `services/.env`
+4. No Dockerfile changes needed — the entrypoint handles it automatically
 
 ## Prod vs Test
 
@@ -145,6 +208,7 @@ Sites with `CLIENT_SECRET` and `CLIENT_SECRET_PATH` set get a cookie-based acces
 | Network | External overlay `outsideworx` | External `services_default` |
 | Domains | Real domains | `*.localhost` |
 | Health check interval | 1m | 5s |
+| Client secret | From `.env` via `$APP_CLIENTS_<CLIENT>_SECRET` | Hardcoded in `compose-test.yaml` |
 
 ## CI/CD (GitHub Actions)
 
@@ -189,5 +253,6 @@ sites/
 ├── compose.yaml            # Prod stack (pulls from GHCR)
 ├── compose-test.yaml       # Local dev (builds from Dockerfile.test)
 ├── Dockerfile              # Prod multi-site image
-└── Dockerfile.test         # Test variant (different proxy, relaxed limits)
+├── Dockerfile.test         # Test variant (different proxy, relaxed limits)
+└── secret.lua.tpl          # Client secret Lua template
 ```

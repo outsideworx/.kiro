@@ -48,10 +48,10 @@ Add client to `app.clients` in `application.yaml`:
 ```yaml
 app:
   clients:
-    <shortname>:
+    <CLIENT>:
       caller: "<site-name>"
       origin: "https://<domain>"
-      token: ${APP_CLIENTS_<UPPER>_TOKEN}
+      token: ${APP_CLIENTS_<CLIENT>_TOKEN}
 ```
 
 Add test override in `application-test.yaml`:
@@ -59,7 +59,7 @@ Add test override in `application-test.yaml`:
 ```yaml
 app:
   clients:
-    <shortname>:
+    <CLIENT>:
       origin: "*"
       token: "test"
 ```
@@ -69,26 +69,26 @@ app:
 Services `compose.yaml` — add to the `services` service environment:
 
 ```yaml
-APP_CLIENTS_<UPPER>_TOKEN: $APP_CLIENTS_<UPPER>_TOKEN
+APP_CLIENTS_<CLIENT>_TOKEN: $APP_CLIENTS_<CLIENT>_TOKEN
 ```
 
 Services `.env` — add the token value:
 
 ```
-APP_CLIENTS_<UPPER>_TOKEN=<generated-token>
+APP_CLIENTS_<CLIENT>_TOKEN=<generated-token>
 ```
 
 Sites `compose.yaml` — add `TOKEN` to the site service:
 
 ```yaml
 environment:
-  TOKEN: $APP_CLIENTS_<UPPER>_TOKEN
+  TOKEN: $APP_CLIENTS_<CLIENT>_TOKEN
 ```
 
 Sites `.env` — add the same token:
 
 ```
-APP_CLIENTS_<UPPER>_TOKEN=<same-token>
+APP_CLIENTS_<CLIENT>_TOKEN=<same-token>
 ```
 
 ### 4. ntfy User (prod only)
@@ -144,7 +144,7 @@ With images, also provide:
 #### API Controller (`controllers/clients/<name>/<Name>ApiController.java`)
 
 ```java
-@CrossOrigin("${app.clients.<shortname>.origin}")
+@CrossOrigin("${app.clients.<CLIENT>.origin}")
 @RestController
 @RequiredArgsConstructor
 @Slf4j
@@ -178,20 +178,20 @@ If the client has its own site (not hosted under an existing domain), wire it in
 
 ### 7. Client Secret (Optional — WIP Sites)
 
-For sites that need a simple access gate on a specific path (see `sites-deployment.md` for how the mechanism works), add the following to the sites repo:
+For sites that need a simple access control on a specific path (see `sites-deployment.md` for how the mechanism works), add the following to the sites repo:
 
 In `sites/compose.yaml`, add to the site service environment:
 
 ```yaml
 environment:
-  CLIENT_SECRET: $APP_CLIENTS_<UPPER>_SECRET
+  CLIENT_SECRET: $APP_CLIENTS_<CLIENT>_SECRET
   CLIENT_SECRET_PATH: "<path>"
 ```
 
 In `sites/.env` and `services/.env`:
 
 ```
-APP_CLIENTS_<UPPER>_SECRET=<secret>
+APP_CLIENTS_<CLIENT>_SECRET=<secret>
 ```
 
 ## Naming Conventions
@@ -200,11 +200,11 @@ APP_CLIENTS_<UPPER>_SECRET=<secret>
 |------|--------|---------|
 | Authelia username | `info@<domain>` | `info@gaiapeeps.com` |
 | App client key | lowercase short name | `peeps` |
-| Env var | `APP_CLIENTS_<UPPER>_TOKEN` | `APP_CLIENTS_PEEPS_TOKEN` |
+| Env var | `APP_CLIENTS_<CLIENT>_TOKEN` | `APP_CLIENTS_PEEPS_TOKEN` |
 | Caller ID | full site name | `gaiapeeps` |
 | API path | `/api/<site-name>` | `/api/gaiapeeps` |
 | View name | `clients/<domain-prefix>` | `clients/gaiapeeps` |
-| Package | `controllers/clients/<shortname>` | `controllers/clients/peeps` |
+| Package | `controllers/clients/<CLIENT>` | `controllers/clients/peeps` |
 | Table name | uppercase | `PEEPS` |
 
 ## Common Pitfall

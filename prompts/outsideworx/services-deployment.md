@@ -27,20 +27,13 @@ The deployment script handles both initial setup and updates.
 ### Deployment Flow (no flag)
 
 1. Wipes and recreates `/home/outsideworx/services/`
-2. Creates persistent data directories:
-   - `/home/outsideworx/data` (PostgreSQL)
-   - `/home/outsideworx/grafana`
-   - `/home/outsideworx/letsencrypt`
-   - `/home/outsideworx/loki`
-   - `/home/outsideworx/ntfy`
-   - `/home/outsideworx/prometheus`
-   - `/home/outsideworx/promtail`
-   - `/home/outsideworx/utils`
+2. Creates `/home/outsideworx/utils` (bind mount for cache output)
 3. Copies `utils/` directory and config files to deploy directory
 4. Sources `.env` file
-5. `docker compose pull`
-6. `docker stack deploy -c compose.yaml services --detach=false --resolve-image=always`
-7. Force-updates all services (rolling restart)
+5. Computes SHA256 hashes of config files (for Swarm config naming)
+6. `docker compose pull`
+7. `docker stack deploy -c compose.yaml services --detach=false --resolve-image=always`
+8. Force-updates all services (rolling restart)
 
 ### Prerequisites
 
@@ -58,7 +51,7 @@ The deployment script handles both initial setup and updates.
 | traefik | traefik:v3.6.14 | 80, 443 (host mode) | See traefik.md |
 | authelia | authelia/authelia:4.37 | via Traefik | See auth.md |
 | services | ghcr.io/outsideworx/services:latest | via Traefik | Spring Boot app |
-| postgres | postgres:16.2 | internal only | Data at `/home/outsideworx/data` |
+| postgres | postgres:16.2 | internal only | Named volume `postgres` |
 | grafana | grafana/grafana:12.3.0 | via Traefik | See monitoring.md |
 | loki | grafana/loki:3.6.4 | internal only | See monitoring.md |
 | prometheus | prom/prometheus:v3.9.1 | internal only | See monitoring.md |
@@ -81,6 +74,43 @@ secrets:
 
 Used only by the `authelia` service.
 
+### Configs
+
+Swarm configs inject configuration files into containers. Each config is named with a SHA256 hash suffix (e.g., `authelia-a1b2c3d4`) computed by `deploy.sh`. This forces Swarm to detect changes and recreate the config on redeploy — Swarm treats configs as immutable, so a new name means a new config.
+
+```yaml
+configs:
+  authelia:
+    file: ./authelia.yaml
+    name: authelia-${HASH_AUTHELIA}
+```
+
+Config files: `authelia.yaml`, `authelia-users.yaml`, `grafana.ini`, `logo.png`, `loki.yaml`, `ntfy.yaml`, `prometheus.yaml`, `promtail.yaml`.
+
+#### Adding a New Config
+
+1. Add the config entry to `compose.yaml` under `configs:` with `name: <name>-${HASH_<NAME>}`
+2. Add `export HASH_<NAME>=$(sha256sum <file> | cut -c1-8)` to `deploy.sh`
+3. Add the file to the `cp` command in `deploy.sh`
+4. Mount it in the service via `configs:` with `source` and `target`
+
+### Volumes
+
+Named Docker volumes for persistent data. Survive stack removal and redeployment.
+
+```yaml
+volumes:
+  grafana:
+  letsencrypt:
+  loki:
+  ntfy:
+  postgres:
+  prometheus:
+  promtail:
+```
+
+The only host bind mount is `/home/outsideworx/utils` (used by the `utils` container to write cached images to disk for the sites to serve).
+
 ## .env File (services)
 
 All variables required for the services stack:
@@ -90,6 +120,7 @@ All variables required for the services stack:
 | `APP_CLIENTS_CIAFO_TOKEN` | services | API auth token for come-in-and-find-out |
 | `APP_CLIENTS_PEEPS_TOKEN` | services | API auth token for gaiapeeps |
 | `APP_CLIENTS_SOUP_TOKEN` | services | API auth token for soupart |
+| `APP_CLIENTS_THEGREEN_SECRET` | sites (outsideworx) | Client secret for cookie-based access control |
 | `AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET` | authelia | OIDC HMAC signing secret |
 | `AUTHELIA_JWT_SECRET` | authelia | JWT signing secret |
 | `AUTHELIA_SESSION_SECRET` | authelia | Session encryption secret |
@@ -115,7 +146,7 @@ All variables required for the services stack:
 | Secrets | Docker secrets (external) | Not used (inline in config) |
 | Placement | `constraints: node.role == manager` | Not applicable |
 | Deploy mode | Swarm services with replicas | Plain containers |
-| Volumes | Persistent host paths (`/home/outsideworx/...`) | Ephemeral / local bind mounts |
+| Volumes | Named Docker volumes + one host bind (`/home/outsideworx/utils`) | Ephemeral / local bind mounts |
 | PostgreSQL auth | Username/password from `.env` | Trust auth (`POSTGRES_HOST_AUTH_METHOD: trust`) |
 | Services image | `ghcr.io/outsideworx/services:latest` | Not in compose (runs on host via IDE) |
 | Docker socket | `/var/run/docker.sock` | `$HOME/.docker/run/docker.sock` (macOS) |
@@ -135,9 +166,24 @@ services/
 │   ├── verify.yaml         # mvn verify on push
 │   ├── build.yaml          # Docker build on main
 │   └── deploy.yaml         # SSH deploy (manual)
+├── authelia.yaml           # Prod Authelia config
+├── authelia-test.yaml      # Test Authelia config
+├── authelia-users.yaml     # Prod user database
+├── authelia-test-users.yaml # Test user database
 ├── compose.yaml            # Prod stack definition
 ├── compose-test.yaml       # Local dev stack
 ├── deploy.sh               # Deployment script
 ├── Dockerfile              # Spring Boot app image
-└── pom.xml                 # Maven build
+├── grafana.ini             # Prod Grafana config
+├── grafana-test.ini        # Test Grafana config
+├── loki.yaml               # Loki config
+├── logo.png                # Authelia branding
+├── ntfy.yaml               # Prod ntfy config
+├── ntfy-test.yaml          # Test ntfy config
+├── pom.xml                 # Maven build
+├── prometheus.yaml         # Prod Prometheus config
+├── prometheus-test.yaml    # Test Prometheus config
+├── promtail.yaml           # Prod Promtail config
+├── promtail-test.yaml      # Test Promtail config
+└── utils/                  # Python sidecar scripts
 ```
