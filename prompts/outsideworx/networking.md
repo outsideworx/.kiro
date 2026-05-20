@@ -194,13 +194,13 @@ networks:
 | services (host) | oauth.localhost (via Traefik) | HTTPS :443 | OIDC token/userinfo/JWKS |
 | grafana | authelia | HTTP :80 | OIDC token, userinfo |
 | prometheus | authelia | HTTP :81 | Metrics scrape |
-| prometheus | loki | HTTP :3100 | Metrics scrape |
+| prometheus | loki | HTTP :80 | Metrics scrape |
 | prometheus | ntfy | HTTP :81 | Metrics scrape |
 | prometheus | postgres-exporter | HTTP :80 | Metrics scrape |
 | prometheus | promtail | HTTP :80 | Metrics scrape |
 | prometheus | host.docker.internal | HTTP :81 | Metrics scrape (services on host) |
-| prometheus | sites (short names) | HTTP :80 | Metrics scrape |
-| promtail | loki | HTTP :3100 | Log push |
+| prometheus | sites (short names) | HTTP :80 | Metrics scrape (come-in-and-find-out, gaiapeeps, soupart) |
+| promtail | loki | HTTP :80 | Log push |
 | postgres-exporter | postgres | PostgreSQL :5432 | DB metrics |
 | utils (cache.py) | postgres | PostgreSQL :5432 | Image sync |
 | sites (Apache) | host.docker.internal | HTTP :8080 | API proxy (`/api/`) |
@@ -209,10 +209,9 @@ networks:
 
 | Port | Used for |
 |------|----------|
-| 80 | Default HTTP (most services) |
-| 81 | Metrics/actuator (authelia, ntfy, services, traefik) |
+| 80 | Default HTTP — business traffic and metrics on some services (loki, postgres-exporter, promtail) |
+| 81 | Dedicated metrics/actuator (authelia, ntfy, services, traefik) |
 | 443 | HTTPS (Traefik only) |
-| 3100 | Loki (test only — prod uses port 80) |
 | 5432 | PostgreSQL |
 | 8080 | Spring Boot app in test mode (on host) |
 
@@ -221,6 +220,5 @@ networks:
 1. **Never use short names in prod configs** — always `<stack>_<service>` format
 2. **Never use `services_` prefix in test configs** — always short container names
 3. **Only add network aliases when Java/Spring Boot is involved** — outbound (`authelia`, `postgres`) or inbound (`services` itself)
-4. **Aliases are task-scoped** — they don't resolve across nodes; VIP DNS does
+4. **Aliases are task-scoped** — they only resolve on the node where the container's task runs, not across the Swarm. This means `authelia`, `postgres`, and `services` must all run on the same node — the Spring Boot app uses aliases to reach them, and those aliases won't resolve if the targets are scheduled on a different machine.
 5. **All services share one flat network** — no network segmentation, no service-specific networks
-6. **Loki uses port 80 in prod, 3100 in test** — test exposes 3100 to host for debugging

@@ -36,14 +36,13 @@
 - Auth disabled (single-tenant)
 - Data volume: `/home/outsideworx/loki`
 - Runs as root (volume permissions)
-- In test mode, port 3100 is exposed to host
 
 ## Promtail
 
 - Config: `promtail.yaml` (prod), `promtail-test.yaml` (test)
 - Deploy mode: global (runs on every swarm node)
 - Discovers containers via Docker socket
-- Pushes to `http://loki/loki/api/v1/push` (prod) or `http://loki:3100/...` (test)
+- Pushes to `http://loki/loki/api/v1/push`
 - Positions file: `/promtail/positions.yaml`
 - Pipeline stages:
   1. Extract log level via regex
@@ -72,7 +71,6 @@
 |--------|--------------|----------------|
 | Promtail refresh | 1m | 5s |
 | Prometheus scrape | 1m | 5s |
-| Loki URL | `http://loki/loki/api/v1/push` | `http://loki:3100/loki/api/v1/push` |
 | Promtail relabeling | Swarm service labels | Compose container names |
 | Grafana root URL | `grafana.outsideworx.net` | `grafana.localhost` |
 | ntfy auth | env-based keys | hardcoded test token |
