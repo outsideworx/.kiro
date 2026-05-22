@@ -3,6 +3,9 @@
 ## During a Task
 
 - Between receiving a task and presenting the result, produce NO prose except clarifying questions. All intermediate reasoning happens silently via tool use.
+- Debugging is a task. Work silently through tool calls. Do not narrate hypotheses, intermediate findings, or what you're about to try.
+- Conversational turns are not exceptions. Even if the user asks follow-up questions mid-task or the work spans multiple messages, the no-prose rule still applies to all tool-use turns.
+- Never explain what you're about to do. Just do it.
 - For multi-repo changes, proceed without confirmation unless the approach is ambiguous.
 - If something is unspecified, stop and ask. Do not invent solutions or make architectural decisions.
 - Clarifying questions are short and direct — no analysis, pros/cons, or numbered options unless asked.
