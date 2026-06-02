@@ -73,7 +73,7 @@ Every routed service needs these labels:
 ### Middlewares
 
 Currently defined:
-- `www-redirect` — Strips `www.` prefix via regex redirect (used by outsideworx, soupart, soupkitchen)
+- `www-redirect` — Strips `www.` prefix via regex redirect (used by all sites)
 
 ```yaml
 - traefik.http.middlewares.www-redirect.redirectregex.permanent=true
@@ -96,10 +96,10 @@ Currently defined:
 
 | Site | Domain(s) | Middleware |
 |------|-----------|------------|
-| come-in-and-find-out | `come-in-and-find-out.ch` | — |
-| duckumbrella | `duckumbrella.net` | — |
-| gaiapeeps | `gaiapeeps.com` | — |
-| igli | `igli.info` | — |
+| come-in-and-find-out | `come-in-and-find-out.ch`, `www.come-in-and-find-out.ch` | www-redirect |
+| duckumbrella | `duckumbrella.net`, `www.duckumbrella.net` | www-redirect |
+| gaiapeeps | `gaiapeeps.com`, `www.gaiapeeps.com` | www-redirect |
+| igli | `igli.info`, `www.igli.info` | www-redirect |
 | outsideworx | `outsideworx.net`, `www.outsideworx.net` | www-redirect |
 | soupart | `soupart.net`, `www.soupart.net` | www-redirect |
 | soupkitchen | `soupkitchen.info`, `www.soupkitchen.info` | www-redirect |

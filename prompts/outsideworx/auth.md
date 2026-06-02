@@ -79,7 +79,7 @@ httpSecurity
 - Grant type: `authorization_code`
 - Scopes: `email, groups, openid, profile`
 - User name attribute: `preferred_username`
-- Internal URLs (service-to-service): `http://authelia/...` (no TLS within overlay network)
+- Internal URLs (service-to-service): `http://services-authelia/...` (network alias, no TLS within overlay network)
 - External URLs (browser redirects): `https://oauth.outsideworx.net/...`
 
 ## Token-Based API Auth

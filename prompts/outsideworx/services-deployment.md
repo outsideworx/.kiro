@@ -26,7 +26,7 @@ The deployment script handles both initial setup and updates.
 
 ### Deployment Flow (no flag)
 
-1. Wipes and recreates `/home/outsideworx/services/`
+1. Creates `/home/outsideworx/services/` (if missing)
 2. Creates `/home/outsideworx/utils` (bind mount for cache output)
 3. Copies `utils/` directory and config files to deploy directory
 4. Sources `.env` file
@@ -57,7 +57,7 @@ The deployment script handles both initial setup and updates.
 | prometheus | prom/prometheus:v3.9.1 | internal only | See monitoring.md |
 | promtail | grafana/promtail:3.6.4 | internal only | Global deploy mode |
 | ntfy | binwiederhier/ntfy:v2.16.0 | via Traefik | See monitoring.md |
-| postgres-exporter | prometheuscommunity/postgres-exporter:v0.18.1 | internal only | |
+| postgres-exporter | quay.io/prometheuscommunity/postgres-exporter:v0.18.1 | internal only | |
 | utils | python:3.13-slim | internal only | See python-utils.md |
 
 ### Network

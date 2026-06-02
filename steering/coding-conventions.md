@@ -9,6 +9,8 @@ Stronger ordering rules:
 - **Logical flow**: callers before callees, setup before execution
 - **Convention-fixed**: positions dictated by a framework or format (e.g., GitHub Actions top-level keys)
 
+"Semantic importance" is never a reason to deviate — a key that feels like a mode declaration or top-level setting still sorts alphabetically with the rest.
+
 ## Java
 
 ### Class-Level

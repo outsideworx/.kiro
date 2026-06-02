@@ -63,8 +63,8 @@ RequestHeader set X-Request-Id "%{UNIQUE_ID}e"
 
 ```apache
 RedirectMatch 403 /\.
-RedirectMatch 403 \.(bak|conf|config|env|ini|json|key|log|properties|php|pub|py|sh|ts|yaml|yml|zip)/?$
-RedirectMatch 403 ^(?!/(metrics|robots)\.txt$).*\.txt/?$
+RedirectMatch 403 ^(?!/cache/).*\.(bak|conf|config|env|ini|json|key|log|properties|php|pub|py|sh|ts|yaml|yml|zip)/?$
+RedirectMatch 403 ^(?!/(cache/|metrics\.txt|robots\.txt)).*\.txt/?$
 RedirectMatch 403 ^(?!/(sitemap)\.xml$).*\.xml/?$
 ```
 
@@ -104,7 +104,7 @@ Simple deployment — no Swarm init needed (uses the network created by services
 
 ### Flow
 
-1. Wipes and recreates `/home/outsideworx/sites/`
+1. Creates `/home/outsideworx/sites/` (if missing)
 2. Copies `.env`, `blacklist.conf`, `compose.yaml`
 3. Sources `.env`
 4. `docker compose pull`

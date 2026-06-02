@@ -7,7 +7,7 @@ The `utils/` directory houses operational scripts and background services that r
 ## Runtime
 
 - Image: `python:3.13-slim`
-- Dependencies: `requirements.txt` (`aiohttp`, `psycopg2-binary`)
+- Dependencies: `requirements.txt` (`psycopg2-binary`)
 - Shared logging: `commons/logging_config.py`
 - Deployed as a single container in the services stack
 
@@ -17,7 +17,7 @@ The `utils/` directory houses operational scripts and background services that r
 |--------|---------------------|--------------------------|
 | Script loading | Skips `*.draft.py` files | Runs ALL `*.py` files including drafts |
 | DB credentials | `DB_USERNAME`/`DB_PASSWORD` from `.env` | `DB_USERNAME=postgres`, `DB_PASSWORD=""` |
-| Volumes | Persistent host paths (`/home/outsideworx/utils`) | Local `./utils` bind mount only |
+| Volumes | Persistent host paths (`/home/outsideworx/utils`) | Local `./utils/cache` bind mount for cache output, `./utils` for scripts |
 | ntfy volume | Host path `/home/outsideworx/ntfy` | Named volume `ntfy:` |
 
 ## Log Format
@@ -34,19 +34,39 @@ Set up via `setup_logging("app-name")` from `commons/logging_config.py`.
 
 Periodically syncs base64-encoded images from PostgreSQL to disk as JPEG files. The static sites serve these cached files instead of querying the DB on every request.
 
-- Connects to PostgreSQL (env: `DB_USERNAME`, `DB_PASSWORD`, host `postgres:5432`)
+- Connects to PostgreSQL (env: `DB_USERNAME`, `DB_PASSWORD`, host `services_postgres:5432`)
 - Polls every 60 seconds
 - Tracks changes via a `hash` column on each table — only re-exports rows whose hash changed
-- Persists known hashes to `/utils/cache/hashes.txt`
-- Writes last successful scan time to `/utils/cache/last_scan.txt`
+- Persists known hashes to `/utils/cache/hashes.properties`
+- Writes last successful scan time to `/utils/cache/last_scan.txt` (global) and `/utils/cache/<client>/last_scan.txt` (per-client)
 - Output directories: `/utils/cache/ciafo/`, `/utils/cache/soup/`
-- File naming: `<id>_<label>.jpg` (e.g., `42_thumbnail1.jpg`)
+- File naming: `<categoryId>_<itemId>_<label>.jpg` (e.g., `3_42_thumbnail1.jpg`)
+- Category index: `categories.properties` per client with category names and ordered item IDs
 - Handles table-not-found gracefully (logs error, continues)
 - Cleans up files for deleted rows
 
-### ntfy_proxy.draft.py — ntfy Auth Proxy (draft, not active)
+#### Category Index Format
 
-An aiohttp reverse proxy in front of ntfy that handles token-based auth by reading tokens from ntfy's SQLite user database. Not currently deployed (`.draft.py` suffix skips it).
+Each client directory contains a `categories.properties` file:
+
+```properties
+1=Accessories
+1.ids=5,12,18
+2=Art
+2.ids=3,7,22
+3=Furniture
+3.ids=1,9,15,20,25,30,35
+```
+
+Categories are sorted alphabetically and assigned numeric IDs starting at 1. The `.ids` key lists item IDs in database order (by primary key ascending). These numeric category IDs are used as the first segment of image filenames.
+
+#### Hashes Format
+
+`hashes.properties` uses dot-separated keys: `<client>.<itemId>=<hash>` (e.g., `ciafo.42=a1b2c3d4`).
+
+### book-club.py — Stub (placeholder)
+
+A placeholder script for a future feature. Currently a no-op (`pass` function body). Runs in both prod and test since it lacks the `.draft.py` suffix.
 
 ## Operations Scripts
 
@@ -58,7 +78,7 @@ Pretty-prints a table of all running containers with CPU %, RAM (MB), network I/
 
 ### docker-wipe.sh
 
-Nuclear option: removes both stacks, all secrets, all images, prunes the system, deletes deployment directories, then runs `apt upgrade`. Interactive confirmation required.
+Nuclear option: removes both stacks, all secrets, all images, prunes the system, deletes deployment directories and cache, then runs `apt upgrade`. Interactive confirmation required.
 
 ### system-swap.sh
 
@@ -68,9 +88,9 @@ Creates a 2GB swap file, persists it to fstab, tunes `vm.swappiness=10` and `vm.
 
 ```
 services/utils/
+├── book-club.py                # Stub placeholder (active)
 ├── cache.py                    # Image cache sync (active)
-├── ntfy_proxy.draft.py         # ntfy auth proxy (draft, skipped)
-├── requirements.txt            # aiohttp, psycopg2-binary
+├── requirements.txt            # psycopg2-binary
 ├── commons/
 │   └── logging_config.py       # Shared logging setup
 └── operations/
@@ -85,4 +105,3 @@ services/utils/
 |----------|---------|-------------|
 | `DB_USERNAME` | cache.py | PostgreSQL username (also used as DB name) |
 | `DB_PASSWORD` | cache.py | PostgreSQL password |
-| `NTFY_DB_PATH` | ntfy_proxy.draft.py | Path to ntfy's SQLite user.db |

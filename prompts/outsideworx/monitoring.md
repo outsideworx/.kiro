@@ -30,9 +30,9 @@
 
 ## Loki
 
-- Config: `loki.yaml`
+- Config: `loki.yaml` (prod), `loki-test.yaml` (test)
 - Schema: v13, TSDB store, filesystem object store
-- Retention: 365 days
+- Retention: 365 days (prod), 7 days (test)
 - Auth disabled (single-tenant)
 - Data volume: `/home/outsideworx/loki`
 - Runs as root (volume permissions)
@@ -82,7 +82,8 @@
 services/
 ├── grafana.ini              # Prod Grafana config
 ├── grafana-test.ini         # Test Grafana config
-├── loki.yaml                # Loki config (shared)
+├── loki.yaml                # Prod Loki config
+├── loki-test.yaml           # Test Loki config
 ├── ntfy.yaml                # Prod ntfy config
 ├── ntfy-test.yaml           # Test ntfy config
 ├── prometheus.yaml          # Prod Prometheus config

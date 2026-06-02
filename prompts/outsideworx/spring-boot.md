@@ -2,7 +2,7 @@
 
 ## Stack
 
-- Java 25, Spring Boot 3.5, Maven
+- Java 25, Spring Boot 3.5.14, Maven
 - Spring Data JPA (Hibernate) + PostgreSQL 16
 - Liquibase (YAML changelogs)
 - Lombok (`@Data`, `@RequiredArgsConstructor`, `@Slf4j`)
@@ -27,7 +27,7 @@ net.outsideworx.services/
 │   ├── CacheFilter.java
 │   └── LogbackFilter.java
 ├── controllers/
-│   ├── IndexController.java         # OAuth2-protected portal (dispatches to ModelVisitor)
+│   ├── IndexController.java         # @RestController, OAuth2-protected portal (dispatches to ModelVisitor)
 │   ├── ViewControllers.java         # Redirect mappings (/grafana, /ntfy)
 │   ├── CallbackController.java      # Shared callback API
 │   ├── ErrorController.java
