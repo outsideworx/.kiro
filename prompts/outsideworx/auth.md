@@ -112,6 +112,20 @@ app:
 
 Mapped to `Properties.clients` (Map<String, Client>) where each `Client` has: `caller`, `origin`, `token`.
 
+#### Token Resolution Flow
+
+```
+compose.yaml environment:        APP_CLIENTS_CIAFO_TOKEN: $APP_CLIENTS_CIAFO_TOKEN
+        ↓ (Docker injects from .env)
+Container env var:               APP_CLIENTS_CIAFO_TOKEN=<value>
+        ↓ (Spring relaxed binding: APP_CLIENTS_CIAFO_TOKEN → app.clients.ciafo.token)
+application.yaml:                token: ${APP_CLIENTS_CIAFO_TOKEN}
+        ↓ (@ConfigurationProperties)
+Properties.clients.get("ciafo").token
+```
+
+Spring's relaxed binding automatically maps the environment variable `APP_CLIENTS_CIAFO_TOKEN` to the property path `app.clients.ciafo.token` — underscores become dots, uppercase becomes lowercase. The `${...}` placeholder in YAML is redundant but explicit.
+
 ### AuthTokenFilter
 
 - Extends `HttpFilter`, `@Component`, package-private
@@ -124,7 +138,7 @@ Mapped to `Properties.clients` (Map<String, Client>) where each `Client` has: `c
 
 Reusable predicates in `configuration/utils/FilterConditions.java`:
 - `apiRequest(request)` — URI starts with `/api`
-- `cachedApiRequest(request)` — URI starts with `/api/cached`
+- `cachedApiRequest(request)` — URI starts with `/api/cache`
 - `notPreflightRequest(request)` — method is not `OPTIONS`
 - `invalidCallerIdOrAuthToken(request)` — no configured client matches both headers
 

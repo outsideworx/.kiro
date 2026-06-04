@@ -120,7 +120,7 @@ All variables required for the services stack:
 | `APP_CLIENTS_CIAFO_TOKEN` | services | API auth token for come-in-and-find-out |
 | `APP_CLIENTS_PEEPS_TOKEN` | services | API auth token for gaiapeeps |
 | `APP_CLIENTS_SOUP_TOKEN` | services | API auth token for soupart |
-| `APP_CLIENTS_THEGREEN_SECRET` | sites (outsideworx) | Client secret for cookie-based access control |
+| `APP_CLIENTS_THEGREEN_SECRET` | sites (outsideworx) | Client secret for cookie-based access control (see `sites-wip.md`) |
 | `AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET` | authelia | OIDC HMAC signing secret |
 | `AUTHELIA_JWT_SECRET` | authelia | JWT signing secret |
 | `AUTHELIA_SESSION_SECRET` | authelia | Session encryption secret |

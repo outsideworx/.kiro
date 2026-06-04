@@ -176,9 +176,29 @@ If the client has its own site (not hosted under an existing domain), wire it in
 - `sites/compose-test.yaml` — add service entry with Traefik labels
 - `sites/.github/workflows/build.yaml` — add `build-<name>` to `repository_dispatch.types` and `<name>` to the matrix
 
+#### Cache Volume (image-serving clients only)
+
+If the client has image columns (served via `cache.py`), mount the cache directory so the site can serve cached images directly:
+
+Prod (`sites/compose.yaml`):
+
+```yaml
+volumes:
+  - /home/outsideworx/utils/cache/<CLIENT>:/usr/local/apache2/htdocs/cache/<CLIENT>:ro
+```
+
+Test (`sites/compose-test.yaml`):
+
+```yaml
+volumes:
+  - services_cache:/usr/local/apache2/htdocs/cache:ro
+```
+
+In test, the `services_cache` named volume is shared across all image-serving sites (declared as `external: true` in the test compose volumes section). In prod, each site mounts only its own client subdirectory from the host bind mount written by `cache.py`.
+
 ### 7. Client Secret (Optional — WIP Sites)
 
-For sites that need a simple access control on a specific path (see `sites-deployment.md` for how the mechanism works), add the following to the sites repo:
+For sites that need a simple access control on a specific path (see `sites-wip.md` for how the mechanism works), add the following to the sites repo:
 
 In `sites/compose.yaml`, add to the site service environment:
 

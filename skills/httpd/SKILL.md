@@ -42,17 +42,25 @@ Includes appended to `httpd.conf` via `sed -e '$aInclude ...'`:
 
 ```sh
 #!/bin/sh
-if [ -n "${TOKEN}" ]; then
-    echo "SetEnv TOKEN ${TOKEN}" > /usr/local/apache2/conf/extra/httpd-token.conf
+echo "Define TOKEN ${TOKEN:-none}" > /usr/local/apache2/conf/extra/httpd-token.conf
+if [ -n "${CLIENT_SECRET}" ]; then
+    sed -e "s|{{CLIENT_SECRET}}|${CLIENT_SECRET}|g" \
+        -e "s|{{CLIENT_SECRET_PATH}}|${CLIENT_SECRET_PATH:-/}|g" \
+        /usr/local/apache2/conf/secret.lua.tpl > /usr/local/apache2/conf/secret.lua
+    cat <<AUTHCONF > /usr/local/apache2/conf/extra/httpd-auth.conf
+<Location "${CLIENT_SECRET_PATH:-/}">
+    LuaHookAccessChecker /usr/local/apache2/conf/secret.lua check_access
+</Location>
+AUTHCONF
 else
-    touch /usr/local/apache2/conf/extra/httpd-token.conf
+    echo "# No auth" > /usr/local/apache2/conf/extra/httpd-auth.conf
 fi
 exec httpd-foreground
 ```
 
-- Sites with API access have `TOKEN` set → written to `httpd-token.conf`
-- Sites without API access → empty file (no error)
-- Test Dockerfile skips this entirely (hardcodes `"test"` in proxy conf), uses `CMD ["httpd-foreground"]` directly
+- `TOKEN` is always written (defaults to `none` if unset) — uses Apache `Define` directive
+- Client secret auth is conditionally configured (see `sites-wip.md`)
+- Test Dockerfile has its own simpler entrypoint (no `httpd-token.conf`, hardcodes `"test"` in proxy conf)
 
 ## Proxy Configuration
 
@@ -67,7 +75,7 @@ ProxyPassReverse "/api/"  "<same as ProxyPass>"
 ## Request Headers
 
 ```apache
-RequestHeader set X-Auth-Token "${TOKEN}"    # prod (from env)
+RequestHeader set X-Auth-Token "${TOKEN}"    # prod (from Define directive)
 RequestHeader set X-Auth-Token "test"        # test (hardcoded)
 RequestHeader set X-Caller-Id "${NAME}"
 RequestHeader set X-Request-Id "%{UNIQUE_ID}e"

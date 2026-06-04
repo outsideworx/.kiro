@@ -63,8 +63,8 @@ RequestHeader set X-Request-Id "%{UNIQUE_ID}e"
 
 ```apache
 RedirectMatch 403 /\.
-RedirectMatch 403 ^(?!/cache/).*\.(bak|conf|config|env|ini|json|key|log|properties|php|pub|py|sh|ts|yaml|yml|zip)/?$
-RedirectMatch 403 ^(?!/(cache/|metrics\.txt|robots\.txt)).*\.txt/?$
+RedirectMatch 403 \.(bak|conf|config|env|ini|json|key|log|properties|php|pub|py|sh|ts|yaml|yml|zip)/?$
+RedirectMatch 403 ^(?!/(metrics|robots)\.txt$).*\.txt/?$
 RedirectMatch 403 ^(?!/(sitemap)\.xml$).*\.xml/?$
 ```
 
@@ -128,71 +128,6 @@ Simple deployment — no Swarm init needed (uses the network created by services
 
 Only sites that call the API need a token. Sites without API calls (duckumbrella, igli, outsideworx, soupkitchen) have no `TOKEN` environment variable.
 
-## Client Secret Access Control
-
-A lightweight protection mechanism for work-in-progress sites that need to share demo URLs with clients without exposing unfinished content to the public. Avoids the overhead of full OAuth2 — just "enter secret to view."
-
-### How It Works
-
-```
-Request to ${CLIENT_SECRET_PATH}page
-        │
-        ▼
-LuaHookAccessChecker (secret.lua)
-        │
-        ├── Has cookie access_token=granted? → Pass through (DECLINED)
-        │
-        └── No cookie → 302 redirect to ${CLIENT_SECRET_PATH}secret
-                                │
-                                ▼
-                        Renders HTML form (dark-themed, password input)
-                                │
-                                ▼ POST
-                        Compare submitted password to CLIENT_SECRET
-                                │
-                        ├── Match → Set cookie, 302 to protected path
-                        └── Mismatch → Re-render form with error
-```
-
-The template (`secret.lua.tpl`) has two placeholders: `{{CLIENT_SECRET}}` and `{{CLIENT_SECRET_PATH}}`.
-
-- **Cookie attributes**: `HttpOnly` (no JS access), `SameSite=Strict` (no CSRF), `Path={CLIENT_SECRET_PATH}` (scoped to protected path)
-- **No `Secure` flag**: works on HTTP in test mode
-- **Session cookie**: no `Max-Age` or `Expires` — cleared when browser closes
-- **No server-side state**: the cookie itself is the proof of access
-
-At container startup, the entrypoint script (`docker-entrypoint.sh`) checks for `CLIENT_SECRET`:
-
-1. If set: runs `sed` on `secret.lua.tpl` to inject `CLIENT_SECRET` and `CLIENT_SECRET_PATH`, producing `/usr/local/apache2/conf/secret.lua`
-2. Generates `conf/extra/httpd-auth.conf` with:
-   ```apache
-   <Location "${CLIENT_SECRET_PATH}">
-       LuaHookAccessChecker /usr/local/apache2/conf/secret.lua check_access
-   </Location>
-   ```
-3. If not set: writes `# No auth` to `httpd-auth.conf` (no-op include)
-
-Requires `mod_lua` (enabled in both Dockerfiles via `sed`).
-
-### Configuration
-
-Compose environment variables on the site service:
-
-```yaml
-environment:
-  CLIENT_SECRET: $APP_CLIENTS_<CLIENT>_SECRET
-  CLIENT_SECRET_PATH: "/path/to/protect/"
-```
-
-The path **must** end with `/`. All requests under that path require the secret.
-
-### Adding Client Secret to Another Site
-
-1. Add `CLIENT_SECRET` and `CLIENT_SECRET_PATH` to the site's environment in `compose.yaml`
-2. Add the same in `compose-test.yaml` (hardcoded value for local dev)
-3. Add `APP_CLIENTS_<CLIENT>_SECRET=<value>` to both `sites/.env` and `services/.env`
-4. No Dockerfile changes needed — the entrypoint handles it automatically
-
 ## Prod vs Test
 
 | Aspect | Prod (Dockerfile) | Test (Dockerfile.test) |
@@ -208,7 +143,6 @@ The path **must** end with `/`. All requests under that path require the secret.
 | Network | External overlay `outsideworx` | External `services_default` |
 | Domains | Real domains | `*.localhost` |
 | Health check interval | 1m | 5s |
-| Client secret | From `.env` via `$APP_CLIENTS_<CLIENT>_SECRET` | Hardcoded in `compose-test.yaml` |
 
 ## CI/CD (GitHub Actions)
 

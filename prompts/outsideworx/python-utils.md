@@ -64,10 +64,6 @@ Categories are sorted alphabetically and assigned numeric IDs starting at 1. The
 
 `hashes.properties` uses dot-separated keys: `<client>.<itemId>=<hash>` (e.g., `ciafo.42=a1b2c3d4`).
 
-### book-club.py — Stub (placeholder)
-
-A placeholder script for a future feature. Currently a no-op (`pass` function body). Runs in both prod and test since it lacks the `.draft.py` suffix.
-
 ## Operations Scripts
 
 Shell scripts in `utils/operations/` — run manually on the server, not part of the sidecar.
@@ -88,7 +84,6 @@ Creates a 2GB swap file, persists it to fstab, tunes `vm.swappiness=10` and `vm.
 
 ```
 services/utils/
-├── book-club.py                # Stub placeholder (active)
 ├── cache.py                    # Image cache sync (active)
 ├── requirements.txt            # psycopg2-binary
 ├── commons/

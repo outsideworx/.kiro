@@ -14,6 +14,7 @@ The following prompt files provide detailed documentation for each subsystem:
 | `auth.md` | Authentication: Authelia OIDC for the admin portal, token-based API auth for sites |
 | `services-deployment.md` | Docker Swarm stack for the backend, PostgreSQL, monitoring, and supporting services |
 | `sites-deployment.md` | Docker stack for the Apache-based static sites, shared Dockerfile, proxy config |
+| `sites-wip.md` | Work-in-progress sites — submodule integration, client secret access control |
 | `traefik.md` | Traefik v3 reverse proxy — TLS, routing, labels, middlewares |
 | `monitoring.md` | Prometheus, Grafana, Loki, Promtail, ntfy — metrics and log aggregation |
 | `networking.md` | Overlay network, Swarm VIP DNS, network aliases, hostname conventions, service communication graph |

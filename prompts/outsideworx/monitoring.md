@@ -15,7 +15,7 @@
 - Config: `prometheus.yaml` (prod), `prometheus-test.yaml` (test)
 - Scrape interval: 1m (prod), 5s (test)
 - Retention: 365 days (`--storage.tsdb.retention.time=365d`)
-- Data volume: `/home/outsideworx/prometheus`
+- Data volume: named volume `prometheus` (mounted at `/prometheus`)
 - Scrape targets: authelia:81, loki, ntfy:81, postgres-exporter, promtail, services:81 (path `/actuator/prometheus`), all site containers, traefik:81
 - In test mode, services target is `host.docker.internal:81` (app runs on host)
 
@@ -24,8 +24,8 @@
 - Config: `grafana.ini` (prod), `grafana-test.ini` (test)
 - Exposed at: `grafana.outsideworx.net`
 - Auth: Authelia OIDC (auto-login, no login form)
-- Role mapping: `groups && contains(groups, 'admin') && 'GrafanaAdmin' || 'Viewer'`
-- Data volume: `/home/outsideworx/grafana`
+- Role mapping: `groups && contains(groups, 'admins') && 'GrafanaAdmin' || 'Viewer'`
+- Data volume: named volume `grafana` (mounted at `/var/lib/grafana`)
 - Runs as root (volume permissions)
 
 ## Loki
@@ -34,7 +34,7 @@
 - Schema: v13, TSDB store, filesystem object store
 - Retention: 365 days (prod), 7 days (test)
 - Auth disabled (single-tenant)
-- Data volume: `/home/outsideworx/loki`
+- Data volume: named volume `loki` (mounted at `/loki`)
 - Runs as root (volume permissions)
 
 ## Promtail
@@ -63,7 +63,7 @@
 - Metrics on port 81
 - Cache: 365 days, file-backed at `/etc/ntfy/data/cache.db`
 - Web push enabled (prod), key pair via environment variables
-- Data volume: `/home/outsideworx/ntfy` (shared with utils container for DB access)
+- Data volume: named volume `ntfy` (mounted at `/etc/ntfy/data`, shared with utils container for DB access)
 
 ## Prod vs Test Differences
 

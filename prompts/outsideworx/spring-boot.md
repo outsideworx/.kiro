@@ -139,7 +139,7 @@ Each client (ciafo, peeps, soup) follows this structure:
 - Cache names: `ciafoItems`, `soupItems`
 - Cache keys: category, id, or `category + offset`
 - Eviction: `@CacheEvict(value = "...", allEntries = true)` on POST endpoints
-- `CacheFilter` adds `Cache-Control: public, max-age=86400` header for `/api/cached/**` requests
+- `CacheFilter` adds `Cache-Control: public, max-age=86400` header for `/api/cache/**` requests
 
 ### Filters (HttpFilter)
 
