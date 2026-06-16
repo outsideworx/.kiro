@@ -40,6 +40,7 @@ Full platform documentation lives in the [`.kiro`](https://github.com/outsidewor
 | [Monitoring](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/monitoring.md) | Prometheus, Grafana, Loki, Promtail, ntfy — metrics and log aggregation |
 | [Networking](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/networking.md) | Overlay network, Swarm VIP DNS, hostname conventions, service communication graph |
 | [GitHub Actions](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/github-actions.md) | CI/CD pipelines — verify, build, deploy workflows for both repos |
+| [API Reference](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/api.md) | REST endpoint signatures, response shapes, pagination, caching, `/api/` vs `/api/cache/` |
 | [Python Utilities](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/python-utils.md) | Sidecar scripts — image cache sync, operational shell scripts |
 
 ### Skills (Step-by-Step Guides)
@@ -49,6 +50,7 @@ Full platform documentation lives in the [`.kiro`](https://github.com/outsidewor
 | [New Client](https://github.com/outsideworx/.kiro/blob/main/skills/new-client/SKILL.md) | Onboarding a new client — Authelia, API wiring, Spring Boot code, compose config |
 | [Admin Portal](https://github.com/outsideworx/.kiro/blob/main/skills/admin-portal/SKILL.md) | Creating or modifying client admin views (Thymeleaf templates, ModelVisitor controllers) |
 | [Apache httpd](https://github.com/outsideworx/.kiro/blob/main/skills/httpd/SKILL.md) | Modifying the shared sites Dockerfile, security headers, proxy config, or rate limits |
+| [Callback](https://github.com/outsideworx/.kiro/blob/main/skills/callback/SKILL.md) | Adding contact form callback to a client (email notification + DB persistence) |
 | [Liquibase](https://github.com/outsideworx/.kiro/blob/main/skills/liquibase/SKILL.md) | Creating or modifying database tables, sequences, or triggers |
 
 ### Steering

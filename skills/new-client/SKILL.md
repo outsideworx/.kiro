@@ -1,13 +1,15 @@
 ---
 name: new-client
-description: Adding a new client to the platform. Use when onboarding a new user/site that needs Authelia login, API access, database storage, and an admin portal view.
+description: Adding a new client to the platform. Use when onboarding a new client that needs API access and database storage. May include an admin portal view.
 ---
 
 # New Client Registration
 
 ## Overview
 
-Adding a new client touches multiple systems. This skill covers the full wiring — from auth to API to admin portal. For database schema creation, delegate to the `liquibase` skill. For admin portal templates, delegate to the `admin-portal` skill.
+Adding a new client touches multiple systems. This skill covers the full wiring — from tokens to API to compose config. For database schema creation, delegate to the `liquibase` skill. For admin portal templates, delegate to the `admin-portal` skill.
+
+Steps 1 (Authelia) and 5's admin controller are only needed if the client will have an admin portal view. Clients without a portal still need the entity, repository, converter, and API controller.
 
 ## Systems Involved
 
