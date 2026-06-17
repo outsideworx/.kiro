@@ -54,7 +54,7 @@ postgres:
 
 ### Inbound Alias
 
-The Spring Boot app *receives* scrape requests from Prometheus. When Prometheus targets `services_services:81`, it sends `Host: services_services` in the request header. Spring Boot's host header validation rejects the underscore. The alias on the services container itself gives Prometheus a valid hostname to use:
+The Spring Boot app *receives* scrape requests from Prometheus. Without an alias, Prometheus would target `services_services:81` (VIP DNS), sending `Host: services_services` in the request header. Spring Boot's host header validation rejects the underscore. The alias on the services container itself gives Prometheus a valid hostname to use:
 
 ```yaml
 # compose.yaml
@@ -159,7 +159,7 @@ networks:
 - **Traefik** is the single ingress point. It terminates TLS and routes to all labeled backend services based on the `Host` header: 4 in the services stack (authelia, grafana, ntfy, services) and all sites in the sites stack (each on its own domain).
 - **Sites → services** is an internal connection (Apache `ProxyPass`), not routed through Traefik. Only the 3 sites with API tokens (come-in-and-find-out, gaiapeeps, soupart) make these calls.
 - **Grafana → authelia** is also internal (OIDC token exchange), not through Traefik.
-- **Prometheus** scrapes every service that exposes metrics — authelia:81, loki, ntfy:81, postgres-exporter, promtail, services:81, traefik:81, and all sites.
+- **Prometheus** scrapes every service that exposes metrics — authelia:81, loki, ntfy:81, postgres-exporter, promtail, services-services:81, traefik:81, and all sites.
 - **Promtail** runs in global mode (one instance per Swarm node) and pushes logs from all containers to Loki.
 
 ## Detailed Communication Paths
