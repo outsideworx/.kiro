@@ -12,12 +12,12 @@ A self-hosted platform running multiple static websites and a shared backend on 
 
 | Component | Stack | Description |
 |-----------|-------|-------------|
-| Spring Boot API | services | Java 25 backend with OAuth2 admin portal and token-based API auth |
-| PostgreSQL | services | Persistent data store for all client data |
-| Traefik | services | Reverse proxy with automatic TLS via Let's Encrypt |
+| Apache Sites | sites | Single-Page web applications for clients |
 | Authelia | services | OIDC identity provider for admin portal and Grafana |
 | Monitoring | services | Prometheus, Grafana, Loki, Promtail, ntfy |
-| Apache Sites | sites | Single-Page web applications for clients |
+| PostgreSQL | services | Persistent data store for all client data |
+| Spring Boot API | services | Java 25 backend with OAuth2 admin portal and token-based API auth |
+| Traefik | services | Reverse proxy with automatic TLS via Let's Encrypt |
 
 Each site is built from a shared Dockerfile into its own Apache httpd container. Sites that need dynamic content proxy API calls to the backend via internal networking. All sites get output rate limiting, request timeouts, IP blacklisting, and restrictive security headers out of the box. Work-in-progress sites can be protected with a lightweight cookie-based client secret without requiring full OAuth2.
 
@@ -31,27 +31,30 @@ Full platform documentation lives in the [`.kiro`](https://github.com/outsidewor
 
 | Document | Covers |
 |----------|--------|
-| [Spring Boot](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/spring-boot.md) | Java 25 / Spring Boot 3.5 backend — package structure, coding conventions, client pattern, testing |
+| [API Reference](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/api.md) | REST endpoint signatures, response shapes, pagination, caching, `/api/` vs `/api/cache/` |
 | [Authentication](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/auth.md) | Authelia OIDC for admin portal, token-based API auth for sites |
+| [GitHub Actions](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/github-actions.md) | CI/CD pipelines — verify, build, deploy workflows for both repos |
+| [Monitoring](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/monitoring.md) | Prometheus, Grafana, Loki, Promtail, ntfy — metrics and log aggregation |
+| [Networking](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/networking.md) | Overlay network, Swarm VIP DNS, hostname conventions, service communication graph |
+| [Python Utilities](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/python-utils.md) | Sidecar scripts — image cache sync, operational shell scripts |
 | [Services Deployment](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/services-deployment.md) | Docker Swarm stack for backend, PostgreSQL, monitoring, and supporting services |
 | [Sites Deployment](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/sites-deployment.md) | Docker stack for Apache-based static sites, shared Dockerfile, proxy config |
 | [Sites WIP](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/sites-wip.md) | Work-in-progress sites — submodule integration, client secret access control |
+| [Spring Boot](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/spring-boot.md) | Java 25 / Spring Boot 3.5 backend — package structure, coding conventions, client pattern, testing |
 | [Traefik](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/traefik.md) | Reverse proxy — TLS, routing, labels, middlewares |
-| [Monitoring](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/monitoring.md) | Prometheus, Grafana, Loki, Promtail, ntfy — metrics and log aggregation |
-| [Networking](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/networking.md) | Overlay network, Swarm VIP DNS, hostname conventions, service communication graph |
-| [GitHub Actions](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/github-actions.md) | CI/CD pipelines — verify, build, deploy workflows for both repos |
-| [API Reference](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/api.md) | REST endpoint signatures, response shapes, pagination, caching, `/api/` vs `/api/cache/` |
-| [Python Utilities](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/python-utils.md) | Sidecar scripts — image cache sync, operational shell scripts |
 
 ### Skills (Step-by-Step Guides)
 
 | Skill | Use when |
 |-------|----------|
-| [New Client](https://github.com/outsideworx/.kiro/blob/main/skills/new-client/SKILL.md) | Onboarding a new client — Authelia, API wiring, Spring Boot code, compose config |
 | [Admin Portal](https://github.com/outsideworx/.kiro/blob/main/skills/admin-portal/SKILL.md) | Creating or modifying client admin views (Thymeleaf templates, ModelVisitor controllers) |
 | [Apache httpd](https://github.com/outsideworx/.kiro/blob/main/skills/httpd/SKILL.md) | Modifying the shared sites Dockerfile, security headers, proxy config, or rate limits |
 | [Callback](https://github.com/outsideworx/.kiro/blob/main/skills/callback/SKILL.md) | Adding contact form callback to a client (email notification + DB persistence) |
+| [GitHub](https://github.com/outsideworx/.kiro/blob/main/skills/github/SKILL.md) | Creating a new site repo, adding it to the build pipeline, or configuring repository settings |
 | [Liquibase](https://github.com/outsideworx/.kiro/blob/main/skills/liquibase/SKILL.md) | Creating or modifying database tables, sequences, or triggers |
+| [New Client](https://github.com/outsideworx/.kiro/blob/main/skills/new-client/SKILL.md) | Onboarding a new client — Authelia, API wiring, Spring Boot code, compose config |
+| [New Site](https://github.com/outsideworx/.kiro/blob/main/skills/new-site/SKILL.md) | Creating the frontend repo for a new or existing client — file structure, page types, assets, scripts, CI |
+| [SEO](https://github.com/outsideworx/.kiro/blob/main/skills/seo/SKILL.md) | Creating or modifying SEO files for a site — robots.txt, sitemap.xml, metrics.txt, meta tags |
 
 ### Steering
 
@@ -59,4 +62,3 @@ Full platform documentation lives in the [`.kiro`](https://github.com/outsidewor
 |----------|---------|
 | [Coding Conventions](https://github.com/outsideworx/.kiro/blob/main/steering/coding-conventions.md) | Coding conventions — ordering rules, Java style, YAML structures, tests |
 | [Ways of Working](https://github.com/outsideworx/.kiro/blob/main/steering/ways-of-working.md) | How the agent should behave — ask before acting, minimal responses, changelog management |
-

@@ -1,8 +1,20 @@
 # GitHub Actions CI/CD
 
-## Overview
+## Organization
 
-Both repos (`outsideworx/services` and `outsideworx/sites`) use GitHub Actions for CI/CD. Images are pushed to GitHub Container Registry (GHCR). Deployment is SSH-based and manually triggered.
+- Org: [outsideworx](https://github.com/outsideworx)
+- Registry: GitHub Container Registry (GHCR) at `ghcr.io/outsideworx/<name>`
+
+## Secrets
+
+| Secret | Purpose |
+|--------|---------|
+| `DISPATCH_TOKEN` | GitHub PAT with `repo` scope — used as GHCR password for image pushes and for sending `repository_dispatch` events to the `sites` repo |
+| `ENV` | Full `.env` file content (written on first deploy only) |
+| `SSH_PRIVATE_KEY` | SSH private key for deploy |
+| `SSH_USER` | SSH username for deploy |
+
+All secrets are org-level and inherited by all repos automatically.
 
 ## Services Pipeline
 
@@ -10,138 +22,40 @@ Both repos (`outsideworx/services` and `outsideworx/sites`) use GitHub Actions f
 Push (any branch) → Verify → (main only, on success) → Build → (manual) → Deploy
 ```
 
-### Verify (`verify.yaml`)
-
-- Trigger: every push (all branches)
-- Steps: checkout → setup Java 25 (Temurin) → `mvn verify`
-- Runs unit + integration tests (Testcontainers)
-
-### Build (`build.yaml`)
-
-- Trigger: `workflow_run` — runs after Verify completes successfully on `main`
-- Condition: `github.event.workflow_run.conclusion == 'success'`
-- Steps: checkout → setup Java 25 → `mvn package -DskipTests` → Docker login → build + push
-- Image: `ghcr.io/outsideworx/services:latest`
-- Tag strategy: always `latest` (no versioned tags)
-
-### Deploy (`deploy.yaml`)
-
-- Trigger: `workflow_dispatch` (manual)
-- Inputs:
-  - `host` — SSH target (default: `services.outsideworx.net`)
-  - `flags` — passed to `deploy.sh` (e.g., `--network`, `--secrets`)
-- Steps: SSH to host → clone repo if missing → write `.env` if missing → git pull → `bash deploy.sh <flags>`
+- **Verify** (`verify.yaml`): Runs `mvn verify` on every push. All branches.
+- **Build** (`build.yaml`): Triggered by `workflow_run` on `main`; only runs if Verify concluded with `success` (`if: conclusion == 'success'`). Packages JAR, builds Docker image, pushes to GHCR.
+- **Deploy** (`deploy.yaml`): Manual `workflow_dispatch`. SSH to host, clone repo if missing, write `.env` if missing, git pull, run `deploy.sh`.
 
 ## Sites Pipeline
 
 ```
 Push to main → Build all sites (matrix)
-Site repo update → repository_dispatch → Build single site
+Site repo push → repository_dispatch → Build single site
 (manual) → Deploy
 ```
 
-### Build (`build.yaml`)
+- **Build — push** (`build.yaml`, `build-sites` job): On push to `main`, builds all sites in parallel via matrix with `NAME` build arg.
+- **Build — dispatch** (`build.yaml`, `build` job): On `repository_dispatch` from a site repo, builds only that site.
+- **Deploy** (`deploy.yaml`): Same pattern as services — manual SSH deploy.
 
-Two jobs, mutually exclusive:
+## Site Repo Dispatch
 
-#### `build-sites` (push to main)
-
-- Trigger: push to `main` branch
-- Strategy: matrix over all site names
-- Steps: checkout → Docker login → build + push with `NAME` build arg
-- Images: `ghcr.io/outsideworx/<name>:latest`
-
-#### `build` (repository_dispatch)
-
-- Trigger: `repository_dispatch` from individual site repos
-- Event types: `build-come-in-and-find-out`, `build-duckumbrella`, `build-gaiapeeps`, `build-igli`, `build-outsideworx`, `build-soupart`, `build-soupkitchen`
-- Payload: `{ "name": "<site-name>" }` in `client_payload`
-- Builds only the dispatched site
-
-### Deploy (`deploy.yaml`)
-
-- Trigger: `workflow_dispatch` (manual)
-- Inputs: `host`, `flags` (same pattern as services)
-- Steps: SSH → clone if missing → write `.env` if missing → git pull → `bash deploy.sh <flags>`
-
-## Cross-Repo Dispatch Pattern
-
-Individual site repos trigger a rebuild of their image in the sites repo via `actions/github-script`:
-
-```yaml
-# In a site repo's .github/workflows/build.yaml:
-- uses: actions/github-script@v7
-  with:
-    github-token: ${{ secrets.DISPATCH_TOKEN }}
-    script: |
-      await github.rest.repos.createDispatchEvent({
-        owner: 'outsideworx',
-        repo: 'sites',
-        event_type: 'build-<name>',
-        client_payload: { name: '<name>' }
-      })
+```
+Site repo push to main → Dispatch event → Sites repo build job triggers → Image pushed to GHCR
 ```
 
-This allows site content changes to trigger a Docker rebuild without touching the sites repo.
+Each site repo has a single workflow (`build.yaml`) with no checkout and no build step. On push to `main`, it calls the GitHub API to send a `repository_dispatch` event to the `sites` repo with `event_type: build-<name>` and `client_payload: { name: '<name>' }`. The `sites` repo receives this, checks out its own Dockerfile, and builds the image — cloning the site repo's content at Docker build time via the `NAME` build arg. The site repo never touches Docker directly.
 
-## Secrets
+## Current Sites
 
-| Secret | Used in | Purpose |
-|--------|---------|---------|
-| `DISPATCH_TOKEN` | services, sites | GitHub PAT — GHCR login + cross-repo dispatch |
-| `SSH_USER` | services, sites | SSH username for deploy |
-| `SSH_PRIVATE_KEY` | services, sites | SSH private key for deploy |
-| `ENV` | services, sites | Full `.env` file content (written on first deploy) |
+Keep this table in sync with the `repository_dispatch.types` list and `strategy.matrix.name` in `sites/.github/workflows/build.yaml`, and with the sites table in `sites-deployment.md`.
 
-## Actions Used
-
-| Action | Version | Purpose |
-|--------|---------|---------|
-| `actions/checkout` | v4 | Clone repo |
-| `actions/github-script` | v7 | Cross-repo dispatch (site repos → sites build) |
-| `actions/setup-java` | v4 | Install Temurin JDK 25 |
-| `appleboy/ssh-action` | v1 | Execute deploy script via SSH |
-| `docker/build-push-action` | v6 | Build and push Docker image |
-| `docker/login-action` | v3 | Authenticate to GHCR |
-
-## Site Repo Workflow Pattern
-
-Each site repo has a single workflow (`.github/workflows/build.yaml`) that dispatches to the sites repo on push to `main`. The structure is identical across all sites — only the `event_type` and `name` values differ:
-
-```yaml
-name: Build
-on:
-  push:
-    branches: [main]
-jobs:
-  dispatch:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.DISPATCH_TOKEN }}
-          script: |
-            await github.rest.repos.createDispatchEvent({
-              owner: 'outsideworx',
-              repo: 'sites',
-              event_type: 'build-<name>',
-              client_payload: { name: '<name>' }
-            })
-```
-
-No checkout, no build step — the site repo only signals the sites repo to rebuild. The actual Docker build (cloning the site content) happens in the sites repo's `build.yaml`.
-
-## Conventions
-
-- All images tagged `:latest` only (no semver, no SHA tags)
-- GHCR registry: `ghcr.io/outsideworx/<name>`
-- Runner: `ubuntu-latest` for all jobs
-- Deploy is always manual (`workflow_dispatch`) — never auto-deploys
-- The `.env` file is created from the `ENV` secret only on first deploy (subsequent deploys use the existing file)
-- Deploy host defaults to `services.outsideworx.net` (same server hosts both stacks)
-
-## Adding a New Site to CI
-
-1. Add `build-<name>` to the `repository_dispatch.types` list in `sites/.github/workflows/build.yaml`
-2. Add `<name>` to the matrix in the `build-sites` job
-3. In the new site's own repo, add a workflow that dispatches `build-<name>` to `outsideworx/sites`
+| Site | Dispatch Event |
+|------|----------------|
+| come-in-and-find-out | `build-come-in-and-find-out` |
+| duckumbrella | `build-duckumbrella` |
+| gaiapeeps | `build-gaiapeeps` |
+| igli | `build-igli` |
+| outsideworx | `build-outsideworx` |
+| soupart | `build-soupart` |
+| soupkitchen | `build-soupkitchen` |

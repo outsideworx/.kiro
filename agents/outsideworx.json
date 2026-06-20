@@ -3,24 +3,16 @@
   "description": "Manages the outsideworx services and sites infrastructure",
   "prompt": "file://.kiro/prompts/outsideworx.md",
   "tools": [
-    "fs_read",
-    "fs_write",
-    "execute_bash",
-    "use_aws",
-    "introspect",
-    "knowledge",
-    "grep",
-    "glob",
-    "code",
-    "subagent",
-    "todo_list"
+    "*"
   ],
   "allowedTools": [
-    "*"
+    "@builtin",
+    "@github"
   ],
   "resources": [
     "file://.kiro/prompts/outsideworx/**/*.md",
     "file://.kiro/steering/**/*.md",
     "skill://.kiro/skills/**/SKILL.md"
-  ]
+  ],
+  "useLegacyMcpJson": true
 }
