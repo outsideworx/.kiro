@@ -4,11 +4,11 @@
 
 | Service | Image | Port | Metrics Port |
 |---------|-------|------|--------------|
-| Prometheus | prom/prometheus:v3.9.1 | — | internal |
-| Grafana | grafana/grafana:12.3.0 | 80 | — |
-| Loki | grafana/loki:3.6.4 | 80 | — |
-| Promtail | grafana/promtail:3.6.4 | 80 | 80 |
-| ntfy | binwiederhier/ntfy:v2.16.0 | 80 | 81 |
+| Prometheus | prom/prometheus | — | internal |
+| Grafana | grafana/grafana | 80 | — |
+| Loki | grafana/loki | 80 | — |
+| Promtail | grafana/promtail | 80 | 80 |
+| ntfy | binwiederhier/ntfy | 80 | 81 |
 
 ## Prometheus
 

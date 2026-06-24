@@ -162,24 +162,6 @@ Soupart and gaiapeeps return the full entity. Null/empty fields are omitted from
 
 Frontend passes `offset` as a URL query parameter. Navigation links increment/decrement by page size. When the response is an empty array and offset > 0, the frontend navigates back.
 
-## Caching
-
-### Server-Side (Caffeine)
-
-| Cache Name | Key Pattern | Endpoints |
-|------------|-------------|-----------|
-| `ciafoItems` | `category` | `GET /api/come-in-and-find-out` (via `getPreviews`) |
-| `ciafoItems` | `id` | `GET /api/cache/come-in-and-find-out` (via `get`) |
-| `ciafoItems` | `category + offset` | `GET /api/come-in-and-find-out` (via `getPreviews`) |
-| `soupItems` | `category` | `GET /api/cache/soupart` (via `get` without offset) |
-| `soupItems` | `category + offset` | `GET /api/cache/soupart` (via `get` with offset) |
-
-Eviction: `@CacheEvict(allEntries = true)` on the admin POST endpoints (`/come-in-and-find-out`, `/soupart`).
-
-### Client-Side (HTTP)
-
-The `CacheFilter` sets `Cache-Control: public, max-age=86400` on `/api/cache/**` responses. Browsers and CDNs cache these for 24 hours. Non-cache endpoints (`/api/come-in-and-find-out`, `/api/callback`, `/api/gaiapeeps`) get no cache header.
-
 ## Which Site Calls What
 
 | Site | Endpoints Used | Has Pagination |

@@ -48,17 +48,17 @@ The deployment script handles both initial setup and updates.
 
 | Service | Image | Exposed | Notes |
 |---------|-------|---------|-------|
-| traefik | traefik:v3.6.14 | 80, 443 (host mode) | See traefik.md |
-| authelia | authelia/authelia:4.37 | via Traefik | See auth.md |
+| traefik | traefik | 80, 443 (host mode) | See traefik.md |
+| authelia | authelia/authelia | via Traefik | See auth.md |
 | services | ghcr.io/outsideworx/services:latest | via Traefik | Spring Boot app |
-| postgres | postgres:16.2 | internal only | Named volume `postgres` |
-| grafana | grafana/grafana:12.3.0 | via Traefik | See monitoring.md |
-| loki | grafana/loki:3.6.4 | internal only | See monitoring.md |
-| prometheus | prom/prometheus:v3.9.1 | internal only | See monitoring.md |
-| promtail | grafana/promtail:3.6.4 | internal only | Global deploy mode |
-| ntfy | binwiederhier/ntfy:v2.16.0 | via Traefik | See monitoring.md |
-| postgres-exporter | quay.io/prometheuscommunity/postgres-exporter:v0.18.1 | internal only | |
-| utils | python:3.13-slim | internal only | See python-utils.md |
+| postgres | postgres | internal only | Named volume `postgres` |
+| grafana | grafana/grafana | via Traefik | See monitoring.md |
+| loki | grafana/loki | internal only | See monitoring.md |
+| prometheus | prom/prometheus | internal only | See monitoring.md |
+| promtail | grafana/promtail | internal only | Global deploy mode |
+| ntfy | binwiederhier/ntfy | via Traefik | See monitoring.md |
+| postgres-exporter | quay.io/prometheuscommunity/postgres-exporter | internal only | |
+| utils | python (slim) | internal only | See python-utils.md |
 
 ### Network
 
@@ -176,7 +176,8 @@ services/
 ├── Dockerfile              # Spring Boot app image
 ├── grafana.ini             # Prod Grafana config
 ├── grafana-test.ini        # Test Grafana config
-├── loki.yaml               # Loki config
+├── loki.yaml               # Prod Loki config
+├── loki-test.yaml          # Test Loki config
 ├── logo.png                # Authelia branding
 ├── ntfy.yaml               # Prod ntfy config
 ├── ntfy-test.yaml          # Test ntfy config

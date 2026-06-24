@@ -40,7 +40,7 @@ Full platform documentation lives in the [`.kiro`](https://github.com/outsidewor
 | [Services Deployment](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/services-deployment.md) | Docker Swarm stack for backend, PostgreSQL, monitoring, and supporting services |
 | [Sites Deployment](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/sites-deployment.md) | Docker stack for Apache-based static sites, shared Dockerfile, proxy config |
 | [Sites WIP](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/sites-wip.md) | Work-in-progress sites — submodule integration, client secret access control |
-| [Spring Boot](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/spring-boot.md) | Java 25 / Spring Boot 3.5 backend — package structure, coding conventions, client pattern, testing |
+| [Spring Boot](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/spring-boot.md) | Java 25 / Spring Boot 3.5 backend — package structure, client pattern, configuration, testing |
 | [Traefik](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/traefik.md) | Reverse proxy — TLS, routing, labels, middlewares |
 
 ### Skills (Step-by-Step Guides)

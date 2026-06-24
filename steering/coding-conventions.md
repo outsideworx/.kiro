@@ -51,6 +51,13 @@ Ordering hierarchy:
 - Constructor injection exclusively via `@RequiredArgsConstructor`
 - Exception: `@Value` for simple config strings that don't warrant a `Properties` entry
 
+### Lombok
+
+- `@Data` on entities and DTOs
+- `@RequiredArgsConstructor` on all classes with injected dependencies
+- `@Slf4j` on any class that logs
+- No `@Builder`, `@AllArgsConstructor`, or `@Getter`/`@Setter` individually
+
 ### Naming
 
 - Test methods: `methodName_whenCondition_expectedBehavior`

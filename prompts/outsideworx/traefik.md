@@ -4,7 +4,7 @@
 
 Traefik v3 is the single entry point for all HTTP/HTTPS traffic. It handles TLS termination, routing, and service discovery via Docker labels.
 
-- Image: `traefik:v3.6.14`
+- Image: `traefik`
 - Ports: 80 (HTTP), 443 (HTTPS), 81 (Traefik dashboard/metrics)
 - Network: `outsideworx` overlay (shared by all services)
 

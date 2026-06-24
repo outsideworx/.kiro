@@ -21,11 +21,11 @@ The same `Dockerfile` builds all sites. The `NAME` build arg determines which si
 ### Build Stages
 
 1. **fetcher** (`bitnami/git`) — Clones `https://github.com/outsideworx/${NAME}.git` with depth 1, initializes submodules
-2. **runtime** (`httpd:2.4`) — Copies site content, configures Apache
+2. **runtime** (`httpd`) — Copies site content, configures Apache
 
 ### Apache Configuration
 
-Modules enabled: `headers`, `negotiation`, `proxy`, `proxy_http`, `ratelimit`, `remoteip`, `reqtimeout`, `unique_id`
+Modules enabled: `headers`, `lua`, `negotiation`, `proxy`, `proxy_http`, `ratelimit`, `remoteip`, `reqtimeout`, `unique_id`
 
 #### Proxy to Services API
 
@@ -146,21 +146,7 @@ Only sites that call the API need a token. Sites without API calls (duckumbrella
 
 ## CI/CD (GitHub Actions)
 
-### Build Triggers
-
-1. **Push to main** — Matrix build: builds all sites in parallel, pushes to GHCR
-2. **repository_dispatch** — Triggered by individual site repos when they update; builds only the changed site
-
-### Dispatch Payload
-
-Site repos send:
-```json
-{ "event_type": "build-<name>", "client_payload": { "name": "<name>" } }
-```
-
-### Deploy
-
-Manual `workflow_dispatch` — SSH to host, git pull, run `deploy.sh`.
+See the `github-actions` prompt for the full pipeline description (build triggers, dispatch payload, deploy workflow).
 
 ## Sites List
 

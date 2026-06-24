@@ -14,7 +14,7 @@ Site    → Traefik → Services (X-Auth-Token + X-Caller-Id) → API endpoints
 
 ## Authelia (OIDC Provider)
 
-- Image: `authelia/authelia:4.37`
+- Image: `authelia/authelia`
 - Exposed at: `oauth.outsideworx.net`
 - Config: `authelia.yaml` (prod), `authelia-test.yaml` (test)
 - Users: `authelia-users.yaml` (prod), `authelia-test-users.yaml` (test)
@@ -165,8 +165,4 @@ services/
 
 ## Adding a New Client
 
-1. Add user to `authelia-users.yaml` and `authelia-test-users.yaml` (email must contain domain matching the view name)
-2. Add client entry to `app.clients` in `application.yaml` and `application-test.yaml`
-3. Add environment variable `APP_CLIENTS_<NAME>_TOKEN` to compose.yaml and `.env`
-4. Create the `ModelVisitor` implementation (controller) with matching view name
-5. Set `TOKEN` environment variable on the site's container in `sites/compose.yaml`
+See the `new-client` skill for the full step-by-step procedure (Authelia users, application config, env vars, Spring Boot code, site wiring).

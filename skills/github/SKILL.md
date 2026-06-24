@@ -139,10 +139,7 @@ Replace `<site-name>` in both `event_type` and `name`.
 
 ### 3. Register in the Sites Build Pipeline
 
-In `sites/.github/workflows/build.yaml`:
-
-1. Add `build-<site-name>` to the `repository_dispatch.types` list (alphabetical order)
-2. Add `<site-name>` to the `strategy.matrix.name` list in `build-sites` job (alphabetical order)
+Delegate to the `new-site` skill — it owns compose, build matrix, and Prometheus wiring (see its "Infrastructure Wiring" section).
 
 ### 4. Verify
 
@@ -213,7 +210,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '25'
+          java-version: '<current-version>'
       - run: mvn verify
 ```
 
@@ -237,7 +234,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '25'
+          java-version: '<current-version>'
       - run: mvn package -DskipTests
       - uses: docker/login-action@v3
         with:

@@ -6,7 +6,7 @@ The `utils/` directory houses operational scripts and background services that r
 
 ## Runtime
 
-- Image: `python:3.13-slim`
+- Image: `python` (slim variant)
 - Dependencies: `requirements.txt` (`psycopg2-binary`)
 - Shared logging: `commons/logging_config.py`
 - Deployed as a single container in the services stack
@@ -17,7 +17,7 @@ The `utils/` directory houses operational scripts and background services that r
 |--------|---------------------|--------------------------|
 | Script loading | Skips `*.draft.py` files | Runs ALL `*.py` files including drafts |
 | DB credentials | `DB_USERNAME`/`DB_PASSWORD` from `.env` | `DB_USERNAME=postgres`, `DB_PASSWORD=""` |
-| Volumes | Persistent host paths (`/home/outsideworx/utils`) | Local `./utils/cache` bind mount for cache output, `./utils` for scripts |
+| Volumes | Persistent host paths (`/home/outsideworx/utils`) | Named volume `cache:` for cache output (shared with sites as `services_cache`), `./utils` bind mount for scripts |
 | ntfy volume | Host path `/home/outsideworx/ntfy` | Named volume `ntfy:` |
 
 ## Log Format

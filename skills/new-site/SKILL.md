@@ -429,4 +429,73 @@ When creating a new site repo:
 10. Create SEO files (`robots.txt`, `sitemap.xml`, `metrics.txt`)
 11. Create `.github/workflows/build.yaml` with the dispatch event
 12. Write README with description, link, and screenshot
-13. Wire the site into `sites/compose.yaml`, `sites/compose-test.yaml`, build matrix, and Prometheus
+13. Wire the site into the platform infrastructure (see below)
+
+## Infrastructure Wiring
+
+This is the authoritative source for registering a new site in compose, Prometheus, and the build pipeline. Other skills delegate here.
+
+### Sites Compose (prod + test)
+
+Add a service entry to `sites/compose.yaml`:
+
+```yaml
+<site-name>:
+  environment:
+    NAME: <site-name>
+    TOKEN: $APP_CLIENTS_<CLIENT>_TOKEN
+  image: ghcr.io/outsideworx/<site-name>:latest
+  networks:
+    - outsideworx
+  deploy:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.<site-name>.entrypoints=websecure
+      - traefik.http.routers.<site-name>.middlewares=www-redirect
+      - traefik.http.routers.<site-name>.rule=Host(`<domain>`) || Host(`www.<domain>`)
+      - traefik.http.routers.<site-name>.tls.certresolver=letsencrypt
+      - traefik.http.services.<site-name>.loadbalancer.healthcheck.interval=1m
+      - traefik.http.services.<site-name>.loadbalancer.healthcheck.path=/metrics
+      - traefik.http.services.<site-name>.loadbalancer.server.port=80
+    placement:
+      constraints:
+        - node.role == manager
+```
+
+Add the corresponding entry to `sites/compose-test.yaml` (use `*.localhost` domain, `tls=true` instead of `certresolver`, health check interval `5s`, build context instead of image).
+
+Sites without API access omit the `TOKEN` environment variable.
+
+### Build Pipeline
+
+In `sites/.github/workflows/build.yaml`:
+
+1. Add `build-<site-name>` to the `repository_dispatch.types` list (alphabetical)
+2. Add `<site-name>` to the `strategy.matrix.name` list in the `build-sites` job (alphabetical)
+
+### Prometheus Scrape Targets
+
+For generic scrape target rules, see the `monitoring` prompt. Site-specific naming conventions:
+
+- `prometheus.yaml` (prod): add `"sites_<site-name>"` to targets
+- `prometheus-test.yaml` (test): add `"<site-name>"` to targets
+
+### Cache Volume (image-serving clients only)
+
+If the client has image columns synced to disk by `cache.py`, mount the cache directory:
+
+Prod (`sites/compose.yaml`):
+
+```yaml
+volumes:
+  - /home/outsideworx/utils/cache/<CLIENT>:/usr/local/apache2/htdocs/cache/<CLIENT>:ro
+```
+
+Test (`sites/compose-test.yaml`):
+
+```yaml
+volumes:
+  - services_cache:/usr/local/apache2/htdocs/cache:ro
+```
+
+In test, `services_cache` is a shared named volume (declared `external: true`). In prod, each site mounts only its own client subdirectory from the host bind mount.

@@ -24,7 +24,6 @@ Steps 1 (Authelia) and 5's admin controller are only needed if the client will h
 | Spring Boot | Entity, Repository, Converter, ApiController, Controller (ModelVisitor) |
 | Thymeleaf | Admin template (delegate to `admin-portal` skill) |
 | Liquibase | Changelog (delegate to `liquibase` skill) |
-| Prometheus | Scrape target (if new site) |
 
 ## Step-by-Step
 
@@ -40,7 +39,7 @@ Add entry to both `authelia-users.yaml` (prod) and `authelia-test-users.yaml` (t
 ```
 
 - The email domain determines which portal view the user sees (regex: `(?<=@)[^.]+(?=\\.)`)
-- Generate prod hash: `docker run --rm authelia/authelia:4.37 authelia crypto hash generate argon2 --password '<password>'`
+- Generate prod hash: `docker run --rm authelia/authelia authelia crypto hash generate argon2 --password '<password>'`
 - Test users all share the same hash (password: `test`): `$argon2id$v=19$m=65536,t=3,p=4$vSWXSYTyISnsOUqnNw6PQA$FvOvwV2ASM4Ii5ax2pt+lMAY+01DpZEtX+50IjPFhBw`
 
 ### 2. Application Config
@@ -170,51 +169,11 @@ Delegate to the `admin-portal` skill for the full pattern.
 
 ### 6. Wire Into Existing Site Infrastructure (if new site)
 
-If the client has its own site (not hosted under an existing domain), wire it into:
+If the client has its own site (not hosted under an existing domain), delegate to the `new-site` skill — it owns compose, Prometheus, build pipeline, and cache volume wiring.
 
-- `prometheus.yaml` — add `"sites_<site-name>"` to the `sites` job targets
-- `prometheus-test.yaml` — add `"<site-name>"` to the `sites` job targets
-- `sites/compose.yaml` — add service entry with Traefik labels and `TOKEN` env var
-- `sites/compose-test.yaml` — add service entry with Traefik labels
-- `sites/.github/workflows/build.yaml` — add `build-<name>` to `repository_dispatch.types` and `<name>` to the matrix
+### 7. Client Secret (WIP Sites Only)
 
-#### Cache Volume (image-serving clients only)
-
-If the client has image columns (served via `cache.py`), mount the cache directory so the site can serve cached images directly:
-
-Prod (`sites/compose.yaml`):
-
-```yaml
-volumes:
-  - /home/outsideworx/utils/cache/<CLIENT>:/usr/local/apache2/htdocs/cache/<CLIENT>:ro
-```
-
-Test (`sites/compose-test.yaml`):
-
-```yaml
-volumes:
-  - services_cache:/usr/local/apache2/htdocs/cache:ro
-```
-
-In test, the `services_cache` named volume is shared across all image-serving sites (declared as `external: true` in the test compose volumes section). In prod, each site mounts only its own client subdirectory from the host bind mount written by `cache.py`.
-
-### 7. Client Secret (Optional — WIP Sites)
-
-For sites that need a simple access control on a specific path (see `sites-wip.md` for how the mechanism works), add the following to the sites repo:
-
-In `sites/compose.yaml`, add to the site service environment:
-
-```yaml
-environment:
-  CLIENT_SECRET: $APP_CLIENTS_<CLIENT>_SECRET
-  CLIENT_SECRET_PATH: "<path>"
-```
-
-In `sites/.env` and `services/.env`:
-
-```
-APP_CLIENTS_<CLIENT>_SECRET=<secret>
-```
+If the site is a work-in-progress that needs cookie-based access control, see the `sites-wip` prompt — it owns the client secret mechanism and setup instructions.
 
 ## Naming Conventions
 
