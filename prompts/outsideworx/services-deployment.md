@@ -149,7 +149,7 @@ All variables required for the services stack:
 | Volumes | Named Docker volumes + one host bind (`/home/outsideworx/utils`) | Ephemeral / local bind mounts |
 | PostgreSQL auth | Username/password from `.env` | Trust auth (`POSTGRES_HOST_AUTH_METHOD: trust`) |
 | Services image | `ghcr.io/outsideworx/services:latest` | Not in compose (runs on host via IDE) |
-| Docker socket | `/var/run/docker.sock` | `$HOME/.docker/run/docker.sock` (macOS) |
+| Docker socket | `/var/run/docker.sock` | `/var/run/docker.sock` |
 
 ## CI/CD (GitHub Actions)
 

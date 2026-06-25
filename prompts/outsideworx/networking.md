@@ -79,7 +79,7 @@ Aliases are task-scoped in Swarm — they only resolve on the node where the con
 | Java code (application.yaml) | `services-<service>` (alias) | `services-postgres`, `services-authelia` |
 | Prometheus scraping Spring Boot | `services-services` (alias) | `services-services:81` |
 | Test config (Docker Compose) | Short container name | `postgres`, `authelia`, `loki` |
-| Test config (host services) | `localhost` or `host.docker.internal` | `localhost:5432`, `host.docker.internal:81` |
+| Test config (host services) | `localhost` or `host.docker.internal` | `localhost:5432`, `host.docker.internal:8081` |
 
 ## Test Network (Docker Compose)
 
@@ -198,7 +198,7 @@ networks:
 | prometheus | ntfy | HTTP :81 | Metrics scrape |
 | prometheus | postgres-exporter | HTTP :80 | Metrics scrape |
 | prometheus | promtail | HTTP :80 | Metrics scrape |
-| prometheus | host.docker.internal | HTTP :81 | Metrics scrape (services on host) |
+| prometheus | host.docker.internal | HTTP :8081 | Metrics scrape (services on host) |
 | prometheus | sites (short names) | HTTP :80 | Metrics scrape (come-in-and-find-out, gaiapeeps, soupart) |
 | promtail | loki | HTTP :80 | Log push |
 | postgres-exporter | postgres | PostgreSQL :5432 | DB metrics |
@@ -214,6 +214,7 @@ networks:
 | 443 | HTTPS (Traefik only) |
 | 5432 | PostgreSQL |
 | 8080 | Spring Boot app in test mode (on host) |
+| 8081 | Spring Boot actuator in test mode (on host) |
 
 ## Key Rules
 

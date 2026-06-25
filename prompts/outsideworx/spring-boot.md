@@ -159,7 +159,7 @@ src/test/java/
 
 | Aspect | Prod (default profile) | Test (`-test` profile) |
 |--------|------------------------|------------------------|
-| Port | 80 (app), 81 (actuator) | 8080 |
+| Port | 80 (app), 81 (actuator) | 8080 (app), 8081 (actuator) |
 | Cache | Caffeine (`maximumSize=76`) | Disabled (`type: none`) |
 | Datasource | `jdbc:postgresql://services-postgres:5432/` with credentials | `jdbc:postgresql://localhost:5432/` trust auth |
 | SSL | Normal validation | Trust-all (via `CommandLineRunner` in `@Profile("test")`) |
@@ -176,5 +176,5 @@ The test profile is activated by `@ActiveProfiles("test")` in integration tests 
 - Unit tests: `mvn test`
 - Full verify (unit + integration): `mvn verify`
 - Prod port: 80 (app), 81 (actuator/metrics)
-- Test port: 8080
+- Test port: 8080 (app), 8081 (actuator)
 - Docker image: `FROM openjdk`, `java -jar services.jar`

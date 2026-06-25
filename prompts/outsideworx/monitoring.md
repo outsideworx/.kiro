@@ -17,7 +17,7 @@
 - Retention: 365 days (`--storage.tsdb.retention.time=365d`)
 - Data volume: named volume `prometheus` (mounted at `/prometheus`)
 - Scrape targets: authelia:81, loki, ntfy:81, postgres-exporter, promtail, services-services:81 (path `/actuator/prometheus`), all site containers, traefik:81
-- In test mode, services target is `host.docker.internal:81` (app runs on host)
+- In test mode, services target is `host.docker.internal:8081` (app runs on host)
 
 ## Grafana
 
@@ -74,7 +74,7 @@
 | Promtail relabeling | Swarm service labels | Compose container names |
 | Grafana root URL | `grafana.outsideworx.net` | `grafana.localhost` |
 | ntfy auth | env-based keys | hardcoded test token |
-| Services target | `services-services:81` | `host.docker.internal:81` |
+| Services target | `services-services:81` | `host.docker.internal:8081` |
 
 ## File Layout
 
