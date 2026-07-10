@@ -171,24 +171,14 @@ on:
         required: true
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ github.event.inputs.host }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -e
-            [ -d src/<repo-name> ] || git clone https://github.com/outsideworx/<repo-name>.git src/<repo-name>
-            cd src/<repo-name>
-            [ -f .env ] || echo "${{ secrets.ENV }}" > .env
-            git pull
-            bash deploy.sh "${{ github.event.inputs.flags }}"
+      - uses: actions/checkout@v4
+      - run: |
+          set -e
+          echo "${{ secrets.ENV }}" > .env
+          ./deploy.sh "${{ github.event.inputs.flags }}"
 ```
-
-Replace `<repo-name>` with the actual repo name (`services` or `sites`). When adding to the `sites` repo, also change the `default` host value from `services.outsideworx.net` to the appropriate host.
 
 ### Required Secrets
 
