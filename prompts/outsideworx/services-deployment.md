@@ -125,10 +125,10 @@ All variables required for the services stack:
 | `AUTHELIA_JWT_SECRET` | authelia | JWT signing secret |
 | `AUTHELIA_SESSION_SECRET` | authelia | Session encryption secret |
 | `AUTHELIA_STORAGE_ENCRYPTION_KEY` | authelia | Storage encryption key |
+| `DISPATCH_TOKEN` | CI/CD | GitHub PAT (not used at runtime, kept for reference) |
 | `GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET` | grafana | Grafana's OIDC client secret |
 | `GF_SECURITY_ADMIN_PASSWORD` | grafana | Grafana admin password |
 | `GF_SECURITY_ADMIN_USER` | grafana | Grafana admin username |
-| `GITHUB_TOKEN` | CI/CD | GitHub PAT (not used at runtime, kept for reference) |
 | `MAILERSEND_SDK_TOKEN` | services | MailerSend API token for email |
 | `NTFY_ADMIN_TOKEN` | — | ntfy admin token (reference only) |
 | `NTFY_WEB_PUSH_PRIVATE_KEY` | ntfy | Web push VAPID private key |

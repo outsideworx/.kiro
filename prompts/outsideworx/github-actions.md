@@ -11,8 +11,6 @@
 |--------|---------|
 | `DISPATCH_TOKEN` | GitHub PAT with `repo` scope — used as GHCR password for image pushes and for sending `repository_dispatch` events to the `sites` repo |
 | `ENV` | Full `.env` file content (written on first deploy only) |
-| `SSH_PRIVATE_KEY` | SSH private key for deploy |
-| `SSH_USER` | SSH username for deploy |
 
 All secrets are org-level and inherited by all repos automatically.
 
