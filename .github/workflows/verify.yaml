@@ -77,18 +77,27 @@ jobs:
           python3 -c "
           import glob, json, os, re, sys
 
+          def strip_prefix(path):
+              prefixes = ['file://', 'skill://']
+              for p in prefixes:
+                  if path.startswith(p):
+                      path = path[len(p):]
+              if path.startswith('.kiro/'):
+                  path = path[len('.kiro/'):]
+              return path
+
           errors = []
 
           for agent_file in glob.glob('agents/*.json'):
               with open(agent_file) as f:
                   data = json.load(f)
 
-              prompt = data.get('prompt', '').replace('file://', '')
+              prompt = strip_prefix(data.get('prompt', ''))
               if prompt and not os.path.exists(prompt):
                   errors.append(f'Missing prompt file: {prompt} (referenced by {agent_file})')
 
               for r in data.get('resources', []):
-                  pattern = r.replace('file://', '').replace('skill://', '')
+                  pattern = strip_prefix(r)
                   if not glob.glob(pattern, recursive=True):
                       errors.append(f'No files match resource: {r} (in {agent_file})')
 
@@ -142,6 +151,15 @@ jobs:
           python3 -c "
           import glob, json, os, re, sys
 
+          def strip_prefix(path):
+              prefixes = ['file://', 'skill://']
+              for p in prefixes:
+                  if path.startswith(p):
+                      path = path[len(p):]
+              if path.startswith('.kiro/'):
+                  path = path[len('.kiro/'):]
+              return path
+
           errors = []
           referenced_files = set()
           referenced_skills = set()
@@ -150,9 +168,9 @@ jobs:
               with open(agent_file) as f:
                   data = json.load(f)
               for r in data.get('resources', []):
-                  pattern = r.replace('file://', '').replace('skill://', '')
+                  pattern = strip_prefix(r)
                   referenced_files.update(glob.glob(pattern, recursive=True))
-              prompt = data.get('prompt', '').replace('file://', '')
+              prompt = strip_prefix(data.get('prompt', ''))
               if prompt:
                   referenced_files.add(prompt)
 
