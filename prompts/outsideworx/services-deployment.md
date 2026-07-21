@@ -155,7 +155,7 @@ All variables required for the services stack:
 
 1. **Verify** — `mvn verify` on every push
 2. **Build** — On successful verify of `main`: `mvn package -DskipTests`, Docker build + push to GHCR
-3. **Deploy** — Manual trigger (`workflow_dispatch`): SSH to host, git pull, run `deploy.sh`
+3. **Deploy** — Manual trigger (`workflow_dispatch`): checks out repo, writes `.env` from secret, runs `deploy.sh` directly on the host
 
 ## File Layout
 

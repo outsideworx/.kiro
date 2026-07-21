@@ -11,6 +11,8 @@ Procedural guide for GitHub-related tasks: creating repos, wiring dispatch workf
 
 For the current state of all pipelines and their full configs, see the `github-actions` prompt.
 
+All workflows run on a self-hosted runner (the production host). The runner must have Java, Maven, Docker Engine, Docker Buildx, and Git pre-installed — see the `github-actions` prompt "Self-Hosted Runner" section for the full prerequisites table.
+
 ## Repository Settings
 
 ### General
@@ -121,7 +123,7 @@ on:
     branches: [main]
 jobs:
   dispatch:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/github-script@v7
         with:
@@ -186,7 +188,7 @@ All secrets are org-level and inherited automatically — no per-repo secret set
 
 ## How to Add a Verify Workflow (Java)
 
-Only for repos with Maven builds:
+Only for repos with Maven builds. Java and Maven are pre-installed on the self-hosted runner — no `setup-java` action needed.
 
 ```yaml
 name: Verify
@@ -194,19 +196,15 @@ on:
   push:
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '<current-version>'
       - run: mvn verify
 ```
 
 ## How to Add a Build Workflow (Docker Image)
 
-For repos that produce a Docker image and need it pushed to GHCR after successful verification:
+For repos that produce a Docker image and need it pushed to GHCR after successful verification. Java, Maven, and Docker Buildx are pre-installed on the self-hosted runner.
 
 ```yaml
 name: Build
@@ -218,13 +216,9 @@ on:
 jobs:
   build:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '<current-version>'
       - run: mvn package -DskipTests
       - uses: docker/login-action@v3
         with:
