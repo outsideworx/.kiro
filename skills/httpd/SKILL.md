@@ -1,5 +1,5 @@
 ---
-name: apache-httpd-sites
+name: httpd
 description: Apache httpd configuration conventions for the sites Dockerfile. Use when modifying the shared Dockerfile, adding security headers, changing proxy config, or adjusting rate limits.
 ---
 
