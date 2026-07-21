@@ -174,14 +174,17 @@ jobs:
               if prompt:
                   referenced_files.add(prompt)
 
-          for root, _, files in os.walk('prompts'):
-              for f in files:
-                  if not f.endswith('.md'):
-                      continue
-                  path = os.path.join(root, f)
-                  content = open(path).read()
-                  refs = re.findall(r'\x60(\S+?)\x60 skill', content)
-                  referenced_skills.update(refs)
+          for search_dir in ['prompts', 'skills']:
+              for root, _, files in os.walk(search_dir):
+                  for f in files:
+                      if not f.endswith('.md'):
+                          continue
+                      path = os.path.join(root, f)
+                      content = open(path).read()
+                      refs = re.findall(r'\x60(\S+?)\x60 skill', content)
+                      referenced_skills.update(refs)
+                      link_refs = re.findall(r'skills/([^/]+)/SKILL\.md', content)
+                      referenced_skills.update(link_refs)
 
           for md in glob.glob('prompts/**/*.md', recursive=True):
               if md not in referenced_files:
@@ -194,7 +197,7 @@ jobs:
           skill_dirs = set(os.listdir('skills')) if os.path.isdir('skills') else set()
           for skill in skill_dirs:
               if skill not in referenced_skills:
-                  errors.append(f'Skill \"{skill}\" is never referenced in any prompt')
+                  errors.append(f'Skill \"{skill}\" is never referenced anywhere')
 
           if errors:
               print('\n'.join(errors))
