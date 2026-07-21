@@ -1,5 +1,5 @@
 ---
-name: liquibase-changelog
+name: liquibase
 description: Liquibase changelog conventions for the services project. Use when creating or modifying database tables, sequences, or triggers.
 ---
 
