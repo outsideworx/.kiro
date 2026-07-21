@@ -15,11 +15,11 @@ The runner must have the following installed and available on `PATH`:
 
 | Dependency | Used by | Purpose |
 |------------|---------|---------|
-| Java (JDK) | services verify, services build | `mvn verify`, `mvn package` |
-| Maven | services verify, services build | Build and test the Spring Boot app |
-| Docker Engine | all builds, all deploys | Image builds, stack deploys |
-| Docker Buildx | sites build, services build | `docker/build-push-action` uses buildx |
-| Git | all workflows | `actions/checkout` |
+| Java (JDK) | services verify, services build | Compiles source, runs unit + integration tests, packages the JAR |
+| Maven | services verify, services build | Orchestrates the full build lifecycle (compile → test → package) |
+| Docker Engine | all builds, all deploys | Builds container images, pushes to GHCR, deploys Swarm stacks |
+| Docker Buildx | sites build, services build | Multi-stage image builds via `docker/build-push-action` |
+| Git | all workflows | Repository checkout and submodule initialization |
 
 ### Implications
 
