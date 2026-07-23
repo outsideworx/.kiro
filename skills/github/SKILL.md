@@ -11,7 +11,7 @@ Procedural guide for GitHub-related tasks: creating repos, wiring dispatch workf
 
 For the current state of all pipelines and their full configs, see the `github-actions` prompt.
 
-All workflows run on a self-hosted runner (the production host). The runner must have Java, Maven, Docker Engine, Docker Buildx, and Git pre-installed — see the `github-actions` prompt "Self-Hosted Runner" section for the full prerequisites table.
+All workflows run on a self-hosted runner — the runner is the production server itself. The runner must have Java, Maven, Docker Engine, Docker Buildx, and Git pre-installed — see the `github-actions` prompt "Self-Hosted Runner" section for the full prerequisites table.
 
 ## Repository Settings
 
@@ -167,10 +167,6 @@ on:
         default: ''
         description: 'Flags to pass to deploy.sh'
         required: false
-      host:
-        default: 'services.outsideworx.net'
-        description: 'SSH host to deploy to'
-        required: true
 jobs:
   deploy:
     runs-on: self-hosted

@@ -24,7 +24,7 @@ The runner must have the following installed and available on `PATH`:
 ### Implications
 
 - No `setup-java` or `setup-node` actions — tooling is pre-installed on the host
-- Deploy workflows run `deploy.sh` directly on the host (no SSH needed)
+- Deploy workflows run `deploy.sh` directly on the host — the runner is the production server
 - Docker commands execute against the local daemon (same Swarm manager node)
 - The runner must be authenticated to GHCR for image pulls during deploy (handled by `docker login` in build steps; deploy relies on credentials cached on the host)
 
