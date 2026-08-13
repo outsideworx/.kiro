@@ -99,59 +99,52 @@ networks:
 
 ## Service Communication Graph
 
-```
-+----------------------------------------------------------------------------------------------------------+
-|  outsideworx overlay network                                                                             |
-|                                                                                                          |
-|  Internet                                                                                                |
-|      |                                                                                                   |
-|      v                                                                                                   |
-|  +----------------------------------------------------------------------------------------------------+  |
-|  |                                    traefik :80, :443, :81                                          |  |
-|  |            Routes by Host header to ALL labeled services (TLS termination)                         |  |
-|  |  Backends: authelia, grafana, ntfy, services, all sites (come-in-and-find-out .. soupkitchen)      |  |
-|  +----------------------------------------------------------------------------------------------------+  |
-|                                                                                                          |
-|                                                                                                          |
-|  +-----------------+            +-----------------+            +-----------------+                       |
-|  |    authelia     |<---OIDC----|    services     |---JDBC---->|    postgres     |                       |
-|  |    :80, :81     |            |    :80, :81     |            |     :5432       |                       |
-|  +--------+--------+            +--------+--------+            +--------+--------+                       |
-|           |                              |                              |                                |
-|           | OIDC                         |                              |                                |
-|           v                              |                              |                                |
-|  +-----------------+                     |                              |                                |
-|  |     grafana     |                     |                              |                                |
-|  |      :80        |                     |                              |                                |
-|  +-----------------+                     |                              |                                |
-|                                          |                              |                                |
-|  +-----------------+                     |                              |                                |
-|  |      ntfy       |                     |                              |                                |
-|  |    :80, :81     |                     |                              |                                |
-|  +-----------------+                     |                              |                                |
-|                                          |                              |                                |
-|  +------------------------------+        |                              |                                |
-|  |     sites (Apache :80 each)  |--------+                              |                                |
-|  |     ProxyPass /api/ ------------>  services                          |                                |
-|  +------------------------------+                                       |                                |
-|                                                                         |                                |
-|  +------------------------------+                                       |                                |
-|  |     postgres-exporter :80    |---------------------------------------+                                |
-|  +------------------------------+                                                                        |
-|                                                                                                          |
-|  +------------------------------+                                                                        |
-|  |     utils (cache.py)         |------PostgreSQL----> postgres :5432                                    |
-|  +------------------------------+                                                                        |
-|                                                                                                          |
-|  +------------------------------+                                                                        |
-|  |     prometheus               |  Scrapes ALL services that expose metrics                              |
-|  +------------------------------+                                                                        |
-|                                                                                                          |
-|  +------------------------------+         +-----------------+                                            |
-|  |     promtail (global)        |-------->|      loki       |  Collects logs from ALL containers         |
-|  |                              |  push   |      :80        |                                            |
-|  +------------------------------+         +-----------------+                                            |
-+----------------------------------------------------------------------------------------------------------+
+```mermaid
+graph TB
+    Internet((Internet))
+
+    subgraph services stack
+        traefik["traefik\n:80, :443, :81"]
+        authelia["authelia\n:80, :81"]
+        grafana["grafana\n:80"]
+        ntfy["ntfy\n:80, :81"]
+        services["services\n:80, :81"]
+        postgres[("postgres\n:5432")]
+        postgres_exporter["postgres-exporter\n:80"]
+        utils["utils\n(cache.py)"]
+        prometheus["prometheus"]
+        promtail["promtail\n(global)"]
+        loki["loki\n:80"]
+    end
+
+    subgraph sites stack
+        sites["sites\n(Apache :80 each)"]
+    end
+
+    Internet -->|":80/:443"| traefik
+    traefik -->|"Host header routing"| authelia
+    traefik -->|"Host header routing"| grafana
+    traefik -->|"Host header routing"| ntfy
+    traefik -->|"Host header routing"| services
+    traefik -->|"Host header routing"| sites
+
+    services -->|"JDBC :5432"| postgres
+    services -->|"OIDC HTTP :80"| authelia
+    grafana -->|"OIDC HTTP :80"| authelia
+    sites -->|"ProxyPass /api/ :80"| services
+    postgres_exporter -->|"PostgreSQL :5432"| postgres
+    utils -->|"PostgreSQL :5432"| postgres
+
+    prometheus -.->|"scrape :81"| authelia
+    prometheus -.->|"scrape :80"| loki
+    prometheus -.->|"scrape :81"| ntfy
+    prometheus -.->|"scrape :80"| postgres_exporter
+    prometheus -.->|"scrape :80"| promtail
+    prometheus -.->|"scrape :81"| services
+    prometheus -.->|"scrape :81"| traefik
+    prometheus -.->|"scrape :80"| sites
+
+    promtail -->|"push logs"| loki
 ```
 
 ### Reading the Graph

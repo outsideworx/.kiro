@@ -7,9 +7,20 @@ Two auth mechanisms coexist:
 1. **OAuth2/OIDC** — Authelia as identity provider, Spring Security as client. Protects the admin portal (browser sessions).
 2. **Token-based API auth** — Static tokens in headers. Protects `/api/**` endpoints called by the static sites.
 
-```
-Browser → Traefik → Services (OAuth2 login via Authelia) → Admin portal
-Site    → Traefik → Services (X-Auth-Token + X-Caller-Id) → API endpoints
+```mermaid
+flowchart LR
+    Browser -->|HTTPS| Traefik
+    Traefik -->|forward| OAuth2
+
+    Site -->|"HTTP (ProxyPass)\ninternal"| TokenFilter
+
+    subgraph Services
+        OAuth2["OAuth2 login\n(Authelia)"] --> AdminPortal["Admin portal"]
+        TokenFilter["AuthTokenFilter\n(X-Auth-Token + X-Caller-Id)"] --> API["API endpoints\n/api/**"]
+    end
+
+    Authelia["Authelia\n(OIDC provider)"]
+    OAuth2 -->|"OAuth2 flow"| Authelia
 ```
 
 ## Authelia (OIDC Provider)
@@ -33,7 +44,7 @@ Site    → Traefik → Services (X-Auth-Token + X-Caller-Id) → API endpoints
 
 ### Users
 
-- `admin` — `info@outsideworx.net`, group `admin` (GrafanaAdmin role)
+- `admin` — `info@outsideworx.net`, group `admins` (GrafanaAdmin role)
 - Per-client users — email-based (e.g., `info@come-in-and-find-out.ch`), no groups
 
 ### Portal Routing Logic
@@ -99,29 +110,32 @@ app:
     ciafo:
       caller: "come-in-and-find-out"
       origin: "https://come-in-and-find-out.ch"
-      token: ${APP_CLIENTS_CIAFO_TOKEN}
     peeps:
       caller: "gaiapeeps"
       origin: "https://gaiapeeps.com"
-      token: ${APP_CLIENTS_PEEPS_TOKEN}
     soup:
       caller: "soupart"
       origin: "https://soupart.net"
-      token: ${APP_CLIENTS_SOUP_TOKEN}
 ```
+
+Tokens are not present in `application.yaml`. Spring's relaxed binding maps the environment variable `APP_CLIENTS_CIAFO_TOKEN` to `app.clients.ciafo.token` automatically — underscores become dots, uppercase becomes lowercase. No explicit YAML entry is needed.
 
 Mapped to `Properties.clients` (Map<String, Client>) where each `Client` has: `caller`, `origin`, `token`.
 
 #### Token Resolution Flow
 
-```
-compose.yaml environment:        APP_CLIENTS_CIAFO_TOKEN: $APP_CLIENTS_CIAFO_TOKEN
-        ↓ (Docker injects from .env)
-Container env var:               APP_CLIENTS_CIAFO_TOKEN=<value>
-        ↓ (Spring relaxed binding: APP_CLIENTS_CIAFO_TOKEN → app.clients.ciafo.token)
-application.yaml:                token: ${APP_CLIENTS_CIAFO_TOKEN}
-        ↓ (@ConfigurationProperties)
-Properties.clients.get("ciafo").token
+```mermaid
+flowchart TD
+    env[".env\nAPP_CLIENTS_CIAFO_TOKEN=value"]
+    compose["compose.yaml environment:\nAPP_CLIENTS_CIAFO_TOKEN: $APP_CLIENTS_CIAFO_TOKEN"]
+    container["Container env var:\nAPP_CLIENTS_CIAFO_TOKEN=value"]
+    yaml["application.yaml:\ntoken: ${APP_CLIENTS_CIAFO_TOKEN}"]
+    props["Properties.clients.get('ciafo').token"]
+
+    env -->|"Docker injects"| compose
+    compose -->|"Swarm sets on container"| container
+    container -->|"Spring relaxed binding\nAPP_CLIENTS_CIAFO_TOKEN → app.clients.ciafo.token"| yaml
+    yaml -->|"@ConfigurationProperties"| props
 ```
 
 Spring's relaxed binding automatically maps the environment variable `APP_CLIENTS_CIAFO_TOKEN` to the property path `app.clients.ciafo.token` — underscores become dots, uppercase becomes lowercase. The `${...}` placeholder in YAML is redundant but explicit.

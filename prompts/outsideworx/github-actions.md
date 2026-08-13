@@ -39,8 +39,13 @@ All secrets are org-level and inherited by all repos automatically.
 
 ## Services Pipeline
 
-```
-Push (any branch) → Verify → (main only, on success) → Build → (manual) → Deploy
+```mermaid
+flowchart LR
+    push["Push\n(any branch)"] --> verify["Verify\nmvn verify"]
+    verify -->|"main + success"| build["Build\nmvn package\ndocker build + push"]
+    build --> ghcr["GHCR"]
+    dispatch["workflow_dispatch\n(manual)"] --> deploy["Deploy\ndeploy.sh"]
+    ghcr -->|"pull on deploy"| deploy
 ```
 
 - **Verify** (`verify.yaml`): Runs `mvn verify` on every push. All branches.
@@ -49,10 +54,14 @@ Push (any branch) → Verify → (main only, on success) → Build → (manual) 
 
 ## Sites Pipeline
 
-```
-Push to main → Build all sites (matrix)
-Site repo push → repository_dispatch → Build single site
-(manual) → Deploy
+```mermaid
+flowchart LR
+    main_push["Push to sites/main"] --> matrix["Matrix build\nall 7 sites"]
+    repo_dispatch["repository_dispatch\nfrom site repo"] --> single["Build\nsingle site"]
+    matrix --> ghcr["GHCR"]
+    single --> ghcr
+    manual["workflow_dispatch\n(manual)"] --> deploy["Deploy\ndeploy.sh"]
+    ghcr -->|"pull on deploy"| deploy
 ```
 
 - **Build — push** (`build.yaml`, `build-sites` job): On push to `main`, builds all sites in parallel via matrix with `NAME` build arg.
@@ -61,8 +70,18 @@ Site repo push → repository_dispatch → Build single site
 
 ## Site Repo Dispatch
 
-```
-Site repo push to main → Dispatch event → Sites repo build job triggers → Image pushed to GHCR
+```mermaid
+sequenceDiagram
+    participant SiteRepo as Site Repo
+    participant API as GitHub API
+    participant SitesRepo as Sites Repo
+    participant GHCR as GHCR
+
+    SiteRepo->>SiteRepo: Push to main
+    SiteRepo->>API: repository_dispatch<br/>event_type: build-name
+    API->>SitesRepo: Trigger build job
+    SitesRepo->>SitesRepo: Docker build<br/>(clones site repo via NAME arg)
+    SitesRepo->>GHCR: Push image
 ```
 
 Each site repo has a single workflow (`build.yaml`) with no checkout and no build step. On push to `main`, it calls the GitHub API to send a `repository_dispatch` event to the `sites` repo with `event_type: build-<name>` and `client_payload: { name: '<name>' }`. The `sites` repo receives this, checks out its own Dockerfile, and builds the image — cloning the site repo's content at Docker build time via the `NAME` build arg. The site repo never touches Docker directly.

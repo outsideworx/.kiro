@@ -65,6 +65,22 @@ For Java coding conventions (class-level rules, imports, fields, dependency inje
 
 Each client (ciafo, peeps, soup) follows this structure:
 
+```mermaid
+graph TD
+    ApiController["ApiController\n@RestController\nserves JSON to site frontend"]
+    Controller["Controller\n@Controller + ModelVisitor\nhandles admin portal form POST"]
+    Converter["Converter\nextends ItemsConverter / ImageConverter\nprocessItems, filterItems, filterIds"]
+    Repository["Repository\nextends CrudRepository\n@Cacheable reads, @CacheEvict on POST"]
+    Entity["Entity\n@Data @Entity\n@Id @GeneratedValue, @Transient delete"]
+    DB[("PostgreSQL")]
+
+    ApiController --> Repository
+    Controller --> Converter
+    Converter --> Repository
+    Repository --> Entity
+    Entity --> DB
+```
+
 1. **Entity** — `@Data @Entity @Table(name = "UPPER_CASE")`, `@Id @GeneratedValue`, `@Transient Boolean delete` field for form handling
 2. **Mapping interfaces** — Interface-based projections for partial selects (only for clients with complex queries)
 3. **Repository** — Extends `CrudRepository<Entity, Long>`, `@Transactional` on interface
@@ -117,6 +133,7 @@ Each client (ciafo, peeps, soup) follows this structure:
 - `Properties` class maps `app.clients` and `app.services` from YAML
 - Each client has: `caller`, `origin`, `token` (see auth.md for details)
 - Each service has: `url` (external URL for redirects)
+- Services entries: `grafana`, `ntfy`, `oauth` — used for redirect URLs (`/grafana`, `/ntfy`) and the OAuth logout redirect
 - Profiles: default (prod) and `test`
 
 ### Logging
@@ -139,8 +156,8 @@ src/test/java/
 │   └── repositories/                # Repository ITs
 └── net/outsideworx/services/        # Unit tests (Test suffix)
     ├── configuration/               # Filter unit tests
-    ├── converters/                   # Converter unit tests
-    └── gateways/                     # Gateway unit tests
+    ├── converters/                  # Converter unit tests
+    └── gateways/                    # Gateway unit tests
 ```
 
 ### Integration Tests

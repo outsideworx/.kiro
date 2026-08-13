@@ -67,24 +67,31 @@ A lightweight protection mechanism for WIP sites that need to share demo URLs wi
 
 ### How It Works
 
-```
-Request to ${CLIENT_SECRET_PATH}page
-        │
-        ▼
-LuaHookAccessChecker (secret.lua)
-        │
-        ├── Has cookie access_token=granted? → Pass through (DECLINED)
-        │
-        └── No cookie → 302 redirect to ${CLIENT_SECRET_PATH}secret
-                                │
-                                ▼
-                        Renders HTML form (dark-themed, password input)
-                                │
-                                ▼ POST
-                        Compare submitted password to CLIENT_SECRET
-                                │
-                        ├── Match → Set cookie, 302 to protected path
-                        └── Mismatch → Re-render form with error
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Apache as Apache (secret.lua)
+
+    Browser->>Apache: GET /clients/thegreen/page
+    Apache->>Apache: LuaHookAccessChecker
+
+    alt has cookie access_token=granted
+        Apache->>Browser: 200 OK (pass through)
+    else no cookie
+        Apache->>Browser: 302 → /clients/thegreen/secret
+        Browser->>Apache: GET /clients/thegreen/secret
+        Apache->>Browser: 200 HTML form (password input)
+        Browser->>Apache: POST /clients/thegreen/secret
+        Apache->>Apache: Compare password to CLIENT_SECRET
+
+        alt match
+            Apache->>Browser: Set-Cookie: access_token=granted<br/>302 → /clients/thegreen/page
+            Browser->>Apache: GET /clients/thegreen/page
+            Apache->>Browser: 200 OK
+        else mismatch
+            Apache->>Browser: 200 HTML form (with error)
+        end
+    end
 ```
 
 The template (`secret.lua.tpl`) has two placeholders: `{{CLIENT_SECRET}}` and `{{CLIENT_SECRET_PATH}}`.

@@ -128,6 +128,8 @@ Simple deployment — no Swarm init needed (uses the network created by services
 
 Only sites that call the API need a token. Sites without API calls (duckumbrella, igli, outsideworx, soupkitchen) have no `TOKEN` environment variable.
 
+The `outsideworx` service is deployed in `global` mode (one instance per Swarm node) rather than replicated mode. This is because it uses task-scoped network aliases for the client secret Lua hook, and global mode ensures the instance is always local to the Traefik entrypoint node.
+
 ## Prod vs Test
 
 | Aspect | Prod (Dockerfile) | Test (Dockerfile.test) |
@@ -150,15 +152,17 @@ See the `github-actions` prompt for the full pipeline description (build trigger
 
 ## Sites List
 
-| Name | Domain | Has API Token |
-|------|--------|---------------|
-| come-in-and-find-out | come-in-and-find-out.ch | Yes |
-| duckumbrella | duckumbrella.net | No |
-| gaiapeeps | gaiapeeps.com | Yes |
-| igli | igli.info | No |
-| outsideworx | outsideworx.net | No |
-| soupart | soupart.net | Yes |
-| soupkitchen | soupkitchen.info | No |
+| Name | Domain | Has API Token | Cache Volume |
+|------|--------|---------------|--------------|
+| come-in-and-find-out | come-in-and-find-out.ch | Yes | `/home/outsideworx/utils/cache/ciafo` → `/htdocs/cache/ciafo` |
+| duckumbrella | duckumbrella.net | No | — |
+| gaiapeeps | gaiapeeps.com | Yes | — |
+| igli | igli.info | No | — |
+| outsideworx | outsideworx.net | No | — |
+| soupart | soupart.net | Yes | `/home/outsideworx/utils/cache/soup` → `/htdocs/cache/soup` |
+| soupkitchen | soupkitchen.info | No | — |
+
+The cache volumes are host bind mounts from the path written by the `utils` container. Sites that serve cached images (`come-in-and-find-out`, `soupart`) mount the relevant subdirectory read-only. In test, both sites share a single named volume (`services_cache`) mounted at `/htdocs/cache`.
 
 ## File Layout
 
