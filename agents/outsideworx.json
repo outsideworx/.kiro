@@ -2,6 +2,7 @@
   "name": "Outside Worx",
   "description": "Manages the outsideworx services and sites infrastructure",
   "prompt": "file://.kiro/prompts/outsideworx.md",
+  "includeMcpJson": true,
   "tools": [
     "*"
   ],
