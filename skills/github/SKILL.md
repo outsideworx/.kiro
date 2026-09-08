@@ -123,7 +123,7 @@ on:
     branches: [main]
 jobs:
   dispatch:
-    runs-on: self-hosted
+    runs-on: outsideworx
     steps:
       - uses: actions/github-script@v7
         with:
@@ -132,12 +132,16 @@ jobs:
             await github.rest.repos.createDispatchEvent({
               owner: 'outsideworx',
               repo: 'sites',
-              event_type: 'build-<site-name>',
+              event_type: 'build-sites',
               client_payload: { name: '<site-name>' }
             })
 ```
 
-Replace `<site-name>` in both `event_type` and `name`.
+Replace `<site-name>` in `client_payload.name`. All site repos use the same `event_type: build-sites` — the payload distinguishes them. For a dynamic **npm app** (like `tunde-divat`), add a `type` field so the `sites` repo picks the npm Dockerfile:
+
+```javascript
+            client_payload: { name: '<site-name>', type: 'npm' }
+```
 
 ### 3. Register in the Sites Build Pipeline
 
@@ -169,7 +173,7 @@ on:
         required: false
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: outsideworx
     steps:
       - uses: actions/checkout@v4
       - run: |
@@ -192,7 +196,7 @@ on:
   push:
 jobs:
   verify:
-    runs-on: self-hosted
+    runs-on: outsideworx
     steps:
       - uses: actions/checkout@v4
       - run: mvn verify
@@ -212,7 +216,7 @@ on:
 jobs:
   build:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: self-hosted
+    runs-on: outsideworx
     steps:
       - uses: actions/checkout@v4
       - run: mvn package -DskipTests
@@ -232,9 +236,10 @@ The `workflow_run` trigger chains this after `Verify` succeeds on `main`. Replac
 
 ## How to Remove a Site from the Pipeline
 
-1. Remove `build-<site-name>` from `repository_dispatch.types` in `sites/.github/workflows/build.yaml`
-2. Remove `<site-name>` from the matrix in the `build-sites` job
-3. Delete or archive the site repo on GitHub
+1. Remove the site's entry from `strategy.matrix.include` in the `build-sites` job of `sites/.github/workflows/build.yaml` (all sites share the `build-sites` event type — there is no per-site `repository_dispatch.types` entry to remove)
+2. Remove the site's service from `sites/compose.yaml` and `sites/compose-test.yaml`
+3. Remove the site from the Prometheus scrape targets (static sites only)
+4. Delete or archive the site repo on GitHub
 
 ## Conventions
 

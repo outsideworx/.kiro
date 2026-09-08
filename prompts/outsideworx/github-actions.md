@@ -7,7 +7,7 @@
 
 ## Self-Hosted Runner
 
-All workflows run on a self-hosted runner (`runs-on: self-hosted`) — the same machine that hosts the production Swarm cluster. No GitHub-hosted runners are used.
+All workflows run on a self-hosted runner (`runs-on: outsideworx`) — the same machine that hosts the production Swarm cluster. No GitHub-hosted runners are used.
 
 ### Prerequisites
 
@@ -64,8 +64,8 @@ flowchart LR
     ghcr -->|"pull on deploy"| deploy
 ```
 
-- **Build — push** (`build.yaml`, `build-sites` job): On push to `main`, builds all sites in parallel via matrix with `NAME` build arg.
-- **Build — dispatch** (`build.yaml`, `build` job): On `repository_dispatch` from a site repo, builds only that site.
+- **Build — push** (`build.yaml`, `build-sites` job): On push to `main`, builds all sites in parallel via a matrix (`strategy.matrix.include`). Each entry sets the `NAME` build arg; the `tunde-divat` entry also sets `type: npm`. The Dockerfile is selected dynamically: `file: Dockerfile${{ matrix.type && format('.{0}', matrix.type) || '' }}` — no type → `Dockerfile`, `npm` → `Dockerfile.npm`.
+- **Build — dispatch** (`build.yaml`, `build` job): On a `repository_dispatch` with `event_type: build-sites`, builds only the site named in `client_payload.name`, selecting the Dockerfile from `client_payload.type` the same way. It then force-updates the running Swarm service (`docker service update --force ... sites_<name>`).
 - **Deploy** (`deploy.yaml`): Same pattern as services — checks out repo, writes `.env`, runs `deploy.sh` on the host.
 
 ## Site Repo Dispatch
@@ -78,24 +78,26 @@ sequenceDiagram
     participant GHCR as GHCR
 
     SiteRepo->>SiteRepo: Push to main
-    SiteRepo->>API: repository_dispatch<br/>event_type: build-name
+    SiteRepo->>API: repository_dispatch<br/>event_type: build-sites<br/>client_payload: { name, type? }
     API->>SitesRepo: Trigger build job
-    SitesRepo->>SitesRepo: Docker build<br/>(clones site repo via NAME arg)
+    SitesRepo->>SitesRepo: Docker build<br/>(clones site repo via NAME arg,<br/>Dockerfile chosen by type)
     SitesRepo->>GHCR: Push image
+    SitesRepo->>SitesRepo: docker service update --force sites_<name>
 ```
 
-Each site repo has a single workflow (`build.yaml`) with no checkout and no build step. On push to `main`, it calls the GitHub API to send a `repository_dispatch` event to the `sites` repo with `event_type: build-<name>` and `client_payload: { name: '<name>' }`. The `sites` repo receives this, checks out its own Dockerfile, and builds the image — cloning the site repo's content at Docker build time via the `NAME` build arg. The site repo never touches Docker directly.
+Each site repo has a single workflow (`build.yaml`) with no checkout and no build step. On push to `main`, it calls the GitHub API to send a `repository_dispatch` event to the `sites` repo with `event_type: build-sites` and `client_payload: { name: '<name>' }` — plus `type: 'npm'` for the `tunde-divat` app. There is one shared event type (`build-sites`), not a per-site event. The `sites` repo receives this, selects the Dockerfile from `client_payload.type`, and builds the image — cloning the site repo's content at Docker build time via the `NAME` build arg — then force-updates the running Swarm service. The site repo never touches Docker directly.
 
 ## Current Sites
 
-Keep this table in sync with the `repository_dispatch.types` list and `strategy.matrix.name` in `sites/.github/workflows/build.yaml`, and with the sites table in `sites-deployment.md`.
+Keep this table in sync with `strategy.matrix.include` in `sites/.github/workflows/build.yaml` and with the sites table in `sites-deployment.md`. All site repos dispatch the same `event_type: build-sites`; the `client_payload` distinguishes them.
 
-| Site | Dispatch Event |
-|------|----------------|
-| come-in-and-find-out | `build-come-in-and-find-out` |
-| duckumbrella | `build-duckumbrella` |
-| gaiapeeps | `build-gaiapeeps` |
-| igli | `build-igli` |
-| outsideworx | `build-outsideworx` |
-| soupart | `build-soupart` |
-| soupkitchen | `build-soupkitchen` |
+| Site | `client_payload.name` | `client_payload.type` | Dockerfile |
+|------|-----------------------|-----------------------|------------|
+| come-in-and-find-out | `come-in-and-find-out` | — | `Dockerfile` |
+| duckumbrella | `duckumbrella` | — | `Dockerfile` |
+| gaiapeeps | `gaiapeeps` | — | `Dockerfile` |
+| igli | `igli` | — | `Dockerfile` |
+| outsideworx | `outsideworx` | — | `Dockerfile` |
+| soupart | `soupart` | — | `Dockerfile` |
+| soupkitchen | `soupkitchen` | — | `Dockerfile` |
+| tunde-divat | `tunde-divat` | `npm` | `Dockerfile.npm` |

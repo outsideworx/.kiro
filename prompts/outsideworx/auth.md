@@ -129,16 +129,14 @@ flowchart TD
     env[".env\nAPP_CLIENTS_CIAFO_TOKEN=value"]
     compose["compose.yaml environment:\nAPP_CLIENTS_CIAFO_TOKEN: $APP_CLIENTS_CIAFO_TOKEN"]
     container["Container env var:\nAPP_CLIENTS_CIAFO_TOKEN=value"]
-    yaml["application.yaml:\ntoken: ${APP_CLIENTS_CIAFO_TOKEN}"]
     props["Properties.clients.get('ciafo').token"]
 
-    env -->|"Docker injects"| compose
+    env -->|"sourced by deploy.sh"| compose
     compose -->|"Swarm sets on container"| container
-    container -->|"Spring relaxed binding\nAPP_CLIENTS_CIAFO_TOKEN → app.clients.ciafo.token"| yaml
-    yaml -->|"@ConfigurationProperties"| props
+    container -->|"Spring relaxed binding\nAPP_CLIENTS_CIAFO_TOKEN → app.clients.ciafo.token"| props
 ```
 
-Spring's relaxed binding automatically maps the environment variable `APP_CLIENTS_CIAFO_TOKEN` to the property path `app.clients.ciafo.token` — underscores become dots, uppercase becomes lowercase. The `${...}` placeholder in YAML is redundant but explicit.
+Spring's relaxed binding automatically maps the environment variable `APP_CLIENTS_CIAFO_TOKEN` to the property path `app.clients.ciafo.token` — underscores become dots, uppercase becomes lowercase. No explicit YAML entry is needed; the `@ConfigurationProperties` class binds directly from the environment variable.
 
 ### AuthTokenFilter
 

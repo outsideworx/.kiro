@@ -8,18 +8,19 @@ AI-enabled from code to canvas — but never generic. We use AI to move faster a
 
 ## Architecture
 
-A self-hosted platform running multiple static websites and a shared backend on a single Docker Swarm node. Two stacks — **services** (backend + infrastructure) and **sites** (static websites) — share a single overlay network.
+A self-hosted platform running multiple static websites and a shared backend on a single Docker Swarm node. Two stacks — **services** (backend + infrastructure) and **sites** (websites) — share a single overlay network.
 
 | Component | Stack | Description |
 |-----------|-------|-------------|
-| Apache Sites | sites | Single-Page web applications for clients |
+| Apache Sites | sites | Single-Page web applications for clients (static, Apache httpd) |
 | Authelia | services | OIDC identity provider for admin portal and Grafana |
 | Monitoring | services | Prometheus, Grafana, Loki, Promtail, ntfy |
 | PostgreSQL | services | Persistent data store for all client data |
 | Spring Boot API | services | Java 25 backend with OAuth2 admin portal and token-based API auth |
 | Traefik | services | Reverse proxy with automatic TLS via Let's Encrypt |
+| tunde-divat | sites | Dynamic npm app (Node/Express + Vite SPA + own SQLite DB) built from `Dockerfile.npm`, served on port 4000 |
 
-Each site is built from a shared Dockerfile into its own Apache httpd container. Sites that need dynamic content proxy API calls to the backend via internal networking. All sites get output rate limiting, request timeouts, IP blacklisting, and restrictive security headers out of the box. Work-in-progress sites can be protected with a lightweight cookie-based client secret without requiring full OAuth2.
+Most sites are built from a shared Dockerfile into their own Apache httpd container; one site (`tunde-divat`) is a self-contained Node/Express + Vite application with its own SQLite database, built from a separate npm Dockerfile. Static sites that need dynamic content proxy API calls to the backend via internal networking; the npm app talks only to itself. All static sites get output rate limiting, request timeouts, IP blacklisting, and restrictive security headers out of the box. Work-in-progress sites can be protected with a lightweight cookie-based client secret without requiring full OAuth2.
 
 For the full compose structure and deployment details, see the [services](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/services-deployment.md) and [sites](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/sites-deployment.md) deployment documentation.
 

@@ -16,8 +16,9 @@
 - Scrape interval: 1m (prod), 5s (test)
 - Retention: 365 days (`--storage.tsdb.retention.time=365d`)
 - Data volume: named volume `prometheus` (mounted at `/prometheus`)
-- Scrape targets: authelia:81, loki, ntfy:81, postgres-exporter, promtail, services-services:81 (path `/actuator/prometheus`), all site containers, traefik:81
+- Scrape targets: authelia:81, loki, ntfy:81, postgres-exporter, promtail, services-services:81 (path `/actuator/prometheus`), the 7 static site containers, traefik:81
 - In test mode, services target is `host.docker.internal:8081` (app runs on host)
+- The `tunde-divat` npm app is **not** a scrape target — it exposes no `/metrics` endpoint (health is checked by Traefik/Docker via `/api/health`). Adding it later would require a metrics endpoint first.
 
 ## Grafana
 

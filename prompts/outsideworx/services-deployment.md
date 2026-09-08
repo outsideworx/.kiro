@@ -19,7 +19,7 @@ The deployment script handles both initial setup and updates.
 
 | Flag | Action |
 |------|--------|
-| `--install` | Installs `docker-compose-v2` via apt |
+| `--install` | Installs `docker-compose-v2`, `git`, `maven`, `openjdk-25-jdk` via apt |
 | `--network` | Initializes Swarm (`docker swarm init --advertise-addr <IP>`) and creates the overlay network |
 | `--secrets` | Generates RSA 4096 key and stores as Docker secret |
 | (no flag) | Deploys/updates the stack |
@@ -109,7 +109,9 @@ volumes:
   promtail:
 ```
 
-The only host bind mount is `/home/outsideworx/utils` (used by the `utils` container to write cached images to disk for the sites to serve).
+Host bind mounts:
+- `/home/outsideworx/utils` → utils container (cached images for sites to serve)
+- `/var/run/docker.sock` → traefik (service discovery) and promtail (container log discovery)
 
 ## .env File (services)
 
@@ -146,7 +148,7 @@ All variables required for the services stack:
 | Secrets | Docker secrets (external) | Not used (inline in config) |
 | Placement | `constraints: node.role == manager` | Not applicable |
 | Deploy mode | Swarm services with replicas | Plain containers |
-| Volumes | Named Docker volumes + one host bind (`/home/outsideworx/utils`) | Ephemeral / local bind mounts |
+| Volumes | Named Docker volumes + host bind mounts (`/home/outsideworx/utils`, `/var/run/docker.sock`) | Ephemeral / local bind mounts |
 | PostgreSQL auth | Username/password from `.env` | Trust auth (`POSTGRES_HOST_AUTH_METHOD: trust`) |
 | Services image | `ghcr.io/outsideworx/services:latest` | Not in compose (runs on host via IDE) |
 | Docker socket | `/var/run/docker.sock` | `/var/run/docker.sock` |

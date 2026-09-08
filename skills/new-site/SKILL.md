@@ -21,6 +21,9 @@ Every site falls into one of these categories. Determine the archetype before sc
 | Link Collector | duckumbrella, gaiapeeps | Optional | Social links or API-fetched embeds |
 | Informational | igli, soupkitchen, outsideworx | No | Static content, no API calls |
 | WIP (submodule) | thegreen | No (initially) | Hosted under outsideworx.net, client-secret protected |
+| Dynamic npm app | tunde-divat | Self-contained | Node/Express + Vite SPA + own SQLite DB, built from `Dockerfile.npm`, port 4000 |
+
+The first four archetypes are **static** sites served by Apache from the shared `Dockerfile`. The **Dynamic npm app** archetype is fundamentally different: it is a full npm-workspaces monorepo whose Express server serves both its own REST API and the built SPA, with its own database — it does not use Apache, the shared static file layout, or the Spring Boot API. Most of this skill (entry-point patterns, hotspot navigation, `layout.css`, the API fetch/jQuery patterns) applies only to static sites. For an npm app, the repo's own `AGENTS.md` and `package.json` scripts define the structure; only the "Infrastructure Wiring" section below applies.
 
 ## Required Files (All Sites)
 
@@ -466,12 +469,56 @@ Add the corresponding entry to `sites/compose-test.yaml` (use `*.localhost` doma
 
 Sites without API access omit the `TOKEN` environment variable.
 
+#### npm App Variant
+
+A dynamic npm app (like `tunde-divat`) uses a different service shape — it is not an Apache static site:
+
+```yaml
+tunde-divat:
+  environment:
+    AI_PROVIDER: $TUNDE_DIVAT_AI_PROVIDER
+    CORS_ORIGIN: https://<domain>
+    DATABASE_URL: file:/data/<site-name>.db
+    OPENAI_API_KEY: $TUNDE_DIVAT_OPENAI_API_KEY
+    SEED_ADMIN_PASSWORD: $TUNDE_DIVAT_SEED_ADMIN_PASSWORD
+    SEED_ADMIN_USERNAME: $TUNDE_DIVAT_SEED_ADMIN_USERNAME
+    SEED_INVITE_CODE: $TUNDE_DIVAT_SEED_INVITE_CODE
+    SESSION_SECRET: $TUNDE_DIVAT_SESSION_SECRET
+    UPLOAD_DIR: /data/uploads
+  image: ghcr.io/outsideworx/<site-name>:latest
+  networks:
+    - outsideworx
+  volumes:
+    - <site-name>:/data
+  deploy:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.<site-name>.entrypoints=websecure
+      - traefik.http.routers.<site-name>.rule=Host(`<domain>`)
+      - traefik.http.routers.<site-name>.tls.certresolver=letsencrypt
+      - traefik.http.services.<site-name>.loadbalancer.healthcheck.interval=1m
+      - traefik.http.services.<site-name>.loadbalancer.healthcheck.path=/api/health
+      - traefik.http.services.<site-name>.loadbalancer.server.port=4000
+```
+
+Differences from a static site: no `NAME`/`TOKEN` env vars, no `www-redirect` middleware (single host rule), a named volume for the SQLite DB + uploads (declared under top-level `volumes:`), server port `4000`, and a `/api/health` health check instead of `/metrics`. Set `CORS_ORIGIN` to the exact public origin the SPA is served from (the real domain, e.g. `https://<domain>`) — a mismatch blocks the app's own API calls.
+
 ### Build Pipeline
 
-In `sites/.github/workflows/build.yaml`:
+In `sites/.github/workflows/build.yaml`, add the site to `strategy.matrix.include` in the `build-sites` job (alphabetical by `name`):
 
-1. Add `build-<site-name>` to the `repository_dispatch.types` list (alphabetical)
-2. Add `<site-name>` to the `strategy.matrix.name` list in the `build-sites` job (alphabetical)
+```yaml
+- name: <site-name>
+```
+
+For a dynamic **npm app**, add the `type` so the npm Dockerfile is selected:
+
+```yaml
+- name: <site-name>
+  type: npm
+```
+
+There is no `repository_dispatch.types` list to edit — all site repos share the single `build-sites` event type, and the `build` (dispatch) job reads `client_payload.name`/`client_payload.type`.
 
 ### Prometheus Scrape Targets
 
@@ -479,6 +526,8 @@ For generic scrape target rules, see the `monitoring` prompt. Site-specific nami
 
 - `prometheus.yaml` (prod): add `"sites_<site-name>"` to targets
 - `prometheus-test.yaml` (test): add `"<site-name>"` to targets
+
+An npm app that does not expose a Prometheus `/metrics` endpoint (like `tunde-divat`) is **not** added to the scrape targets — its health is checked by Traefik/Docker via `/api/health` only.
 
 ### Cache Volume (image-serving clients only)
 
