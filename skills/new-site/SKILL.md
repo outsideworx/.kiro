@@ -537,7 +537,7 @@ Prod (`sites/compose.yaml`):
 
 ```yaml
 volumes:
-  - /home/outsideworx/utils/cache/<CLIENT>:/usr/local/apache2/htdocs/cache/<CLIENT>:ro
+  - services_cache:/usr/local/apache2/htdocs/cache:ro
 ```
 
 Test (`sites/compose-test.yaml`):
@@ -547,4 +547,4 @@ volumes:
   - services_cache:/usr/local/apache2/htdocs/cache:ro
 ```
 
-In test, `services_cache` is a shared named volume (declared `external: true`). In prod, each site mounts only its own client subdirectory from the host bind mount.
+In both prod and test, `services_cache` is a shared external named volume (declared `external: true`) populated by the services stack's `utils` container. The whole volume is mounted read-only at `/htdocs/cache` — there is no per-client subdirectory bind mount anymore.

@@ -27,13 +27,12 @@ The deployment script handles both initial setup and updates.
 ### Deployment Flow (no flag)
 
 1. Creates `/home/outsideworx/services/` (if missing)
-2. Creates `/home/outsideworx/utils` (bind mount for cache output)
-3. Copies `utils/` directory and config files to deploy directory
-4. Sources `.env` file
-5. Computes SHA256 hashes of config files (for Swarm config naming)
-6. `docker compose pull`
-7. `docker stack deploy -c compose.yaml services --detach=false --resolve-image=always`
-8. Force-updates all services (rolling restart)
+2. Copies `utils/` directory and config files to deploy directory
+3. Sources `.env` file
+4. Computes SHA256 hashes of config files (for Swarm config naming)
+5. `docker compose pull`
+6. `docker stack deploy -c compose.yaml services --detach=false --resolve-image=always`
+7. Force-updates all services (rolling restart)
 
 ### Prerequisites
 
@@ -100,6 +99,7 @@ Named Docker volumes for persistent data. Survive stack removal and redeployment
 
 ```yaml
 volumes:
+  cache:
   grafana:
   letsencrypt:
   loki:
@@ -109,8 +109,9 @@ volumes:
   promtail:
 ```
 
+The `cache` named volume holds the images the `utils` container syncs from PostgreSQL. It is exposed to the sites stack as the external volume `services_cache` (Swarm prefixes the stack name), which `come-in-and-find-out` and `soupart` mount read-only. This replaced the former `/home/outsideworx/utils` host bind mount — `deploy.sh` no longer creates that directory.
+
 Host bind mounts:
-- `/home/outsideworx/utils` → utils container (cached images for sites to serve)
 - `/var/run/docker.sock` → traefik (service discovery) and promtail (container log discovery)
 
 ## .env File (services)
@@ -148,7 +149,7 @@ All variables required for the services stack:
 | Secrets | Docker secrets (external) | Not used (inline in config) |
 | Placement | `constraints: node.role == manager` | Not applicable |
 | Deploy mode | Swarm services with replicas | Plain containers |
-| Volumes | Named Docker volumes + host bind mounts (`/home/outsideworx/utils`, `/var/run/docker.sock`) | Ephemeral / local bind mounts |
+| Volumes | Named Docker volumes + host bind mount (`/var/run/docker.sock`) | Ephemeral / local bind mounts |
 | PostgreSQL auth | Username/password from `.env` | Trust auth (`POSTGRES_HOST_AUTH_METHOD: trust`) |
 | Services image | `ghcr.io/outsideworx/services:latest` | Not in compose (runs on host via IDE) |
 | Docker socket | `/var/run/docker.sock` | `/var/run/docker.sock` |

@@ -153,6 +153,20 @@ Simple deployment — no Swarm init needed (uses the network created by services
 5. `docker stack deploy -c compose.yaml sites --detach=false --resolve-image=always`
 6. Force-updates all services
 
+### Update Strategy
+
+Every service in `compose.yaml` shares a YAML-anchored `update_config` (`x-update-config`):
+
+```yaml
+update_config:
+  failure_action: rollback
+  order: start-first
+```
+
+- **`order: start-first`** — Swarm starts the new task and waits for it to become healthy before stopping the old one, giving zero-downtime rolling updates (the health checks gate the cutover).
+- **`failure_action: rollback`** — if the new task fails to converge, Swarm automatically rolls back to the previous task instead of leaving the service down.
+
+
 ### Prerequisites
 
 - Swarm already initialized (by services deploy)
@@ -175,8 +189,6 @@ Simple deployment — no Swarm init needed (uses the network created by services
 | `TUNDE_DIVAT_SESSION_SECRET` | tunde-divat | JWT/session signing secret (≥32 chars) → `SESSION_SECRET` |
 
 Only static sites that call the API need a `TOKEN`. Static sites without API calls (duckumbrella, igli, outsideworx, soupkitchen) have no `TOKEN` environment variable. The `tunde-divat` npm app uses none of the `TOKEN`/`CLIENT_SECRET` mechanism — it has its own `TUNDE_DIVAT_*` variables (mapped to the Express app's env in compose). `DATABASE_URL`, `UPLOAD_DIR`, and `CORS_ORIGIN` are set as literals in `compose.yaml`, not via `.env`.
-
-The `outsideworx` service is deployed in `global` mode (one instance per Swarm node) rather than replicated mode. On the current single-node cluster this is functionally equivalent to one replica, but global mode ensures an instance is present on every node without specifying a replica count — useful if the cluster ever scales out.
 
 ## Prod vs Test
 
@@ -215,20 +227,25 @@ The `outsideworx` service is deployed in `global` mode (one instance per Swarm n
 
 See the `github-actions` prompt for the full pipeline description (build triggers, dispatch payload, deploy workflow).
 
+Two distinct deployment paths exist:
+
+- **Auto-deploy (site content)** — A push to a site repo dispatches the `build` job, which builds the one image, pushes it to GHCR, and then force-updates the running Swarm service (`docker service update --force sites_<name>`). Site content changes reach production with no manual step. Combined with the `start-first` / `rollback` update strategy above, this is a zero-downtime rolling update.
+- **Manual deploy (stack changes)** — `deploy.sh` (run via the manual `deploy.yaml` workflow) is only needed for stack-level changes: `compose.yaml`, `.env`, or adding/removing services. The matrix `build-sites` job (push to `sites/main`) rebuilds all images to GHCR but does **not** update running services — a manual deploy applies them.
+
 ## Sites List
 
 | Name | Domain | Type | Has API Token | Cache Volume |
 |------|--------|------|---------------|--------------|
-| come-in-and-find-out | come-in-and-find-out.ch | static | Yes | `/home/outsideworx/utils/cache/ciafo` → `/htdocs/cache/ciafo` |
+| come-in-and-find-out | come-in-and-find-out.ch | static | Yes | `services_cache` → `/htdocs/cache` (ro) |
 | duckumbrella | duckumbrella.net | static | No | — |
 | gaiapeeps | gaiapeeps.com | static | Yes | — |
 | igli | igli.info | static | No | — |
 | outsideworx | outsideworx.net | static | No | — |
-| soupart | soupart.net | static | Yes | `/home/outsideworx/utils/cache/soup` → `/htdocs/cache/soup` |
+| soupart | soupart.net | static | Yes | `services_cache` → `/htdocs/cache` (ro) |
 | soupkitchen | soupkitchen.info | static | No | — |
 | tunde-divat | tundedivat.com | npm | No (self-contained) | Named volume `tunde-divat` → `/data` (SQLite + uploads) |
 
-The cache volumes are host bind mounts from the path written by the `utils` container. Static sites that serve cached images (`come-in-and-find-out`, `soupart`) mount the relevant subdirectory read-only. In test, both sites share a single named volume (`services_cache`) mounted at `/htdocs/cache`. The `tunde-divat` volume is a Docker named volume holding the app's own SQLite database and uploaded images — not a cache of the services DB.
+The cache volume is a Docker named volume (`services_cache`, external — created by the services stack's `utils` container as `cache`). It is no longer a host bind mount; nothing under `/home/outsideworx/utils` is involved anymore. Static sites that serve cached images (`come-in-and-find-out`, `soupart`) mount the whole volume read-only at `/htdocs/cache` (not a per-client subdirectory). In test, both sites share the same named volume mounted at `/htdocs/cache`. The `tunde-divat` volume is a separate Docker named volume holding the app's own SQLite database and uploaded images — not a cache of the services DB.
 
 ## File Layout
 
