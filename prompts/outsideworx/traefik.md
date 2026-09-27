@@ -105,11 +105,9 @@ Currently defined:
 | soupkitchen | `soupkitchen.info`, `www.soupkitchen.info` | www-redirect |
 | tunde-divat | `tundedivat.com` | — (none) |
 
-All static sites listen on port `80` and use the `/metrics` health check. Two things make `tunde-divat` (the npm app) different in its Traefik labels:
-
-- **Port `4000`**: `traefik.http.services.tunde-divat.loadbalancer.server.port=4000` — its Express server, not Apache on 80.
-- **Health check `/api/health`**: `...loadbalancer.healthcheck.path=/api/health` instead of `/metrics`.
-- **No `www-redirect` and single-host rule**: `rule=Host(`tundedivat.com`)` only (no `www.` alternate, no middleware) — the app is served from the apex domain only.
+All static sites listen on port `80` and use the `/metrics` health check. The `tunde-divat` npm app is also served on port `80` with a `/metrics` health check. The main difference from static sites is:
+- Single-host rule (no `www.` redirect)
+- No `www.` alternate domain
 
 ## Prod vs Test
 

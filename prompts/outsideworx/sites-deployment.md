@@ -18,10 +18,10 @@ Each site is a separate GitHub repository. Static sites contain HTML/CSS/JS (oft
 
 The `sites` repo ships two families of Dockerfile, selected per site by a build **type**:
 
-| Type | Dockerfile (prod / test) | Base | Serves | Sites |
-|------|--------------------------|------|--------|-------|
+| Type | Dockerfile (prod / test) | Runtime base | Serves | Sites |
+|------|--------------------------|--------------|--------|-------|
 | (default, no type) | `Dockerfile` / `Dockerfile.test` | `httpd` (Apache) | Static content, proxies `/api/` | all static sites |
-| `npm` | `Dockerfile.npm` / `Dockerfile.npm.test` | `node:22-alpine` | Its own Express API + built SPA | `tunde-divat` |
+| `npm` | `Dockerfile.npm` / `Dockerfile.npm.test` | `httpd:2.4` + Node.js (builder: `node:22-alpine`) | Its own Express API + built SPA | `tunde-divat` |
 
 The build type is passed through CI as `client_payload.type` (dispatch) or a `type` field in the build matrix (push). The workflow resolves the Dockerfile name dynamically: no type → `Dockerfile`, `npm` → `Dockerfile.npm` (see the `github-actions` prompt). Both types still take the `NAME` build arg to select which repo to clone.
 
@@ -111,32 +111,37 @@ The `CMD` runs a shell script that writes the `TOKEN` env var into an Apache con
 
 ## Dockerfile — npm App (`tunde-divat`)
 
-`Dockerfile.npm` (prod) and `Dockerfile.npm.test` (test) build the `tunde-divat` dynamic app. Both are currently identical. The `NAME` build arg still selects the repo to clone, so the template stays multi-site-capable even though only one npm site exists today.
+`Dockerfile.npm` (prod) and `Dockerfile.npm.test` (test) build the `tunde-divat` dynamic app. The two are nearly identical — the **only** difference is `NODE_ENV` (`production` in prod, `development` in test). The `NAME` build arg still selects the repo to clone, so the template stays multi-site-capable even though only one npm site exists today.
 
 ### Build Stages
 
 1. **fetcher** (`bitnami/git`) — Clones `https://github.com/outsideworx/${NAME}.git` (depth 1)
 2. **builder** (`node:22-alpine`) — `npm ci`, then `npm run build` with `VITE_API_URL=""` (the SPA calls the API on its own origin under `/api/`)
-3. **runtime** (`node:22-alpine`) — Copies the built workspace, sets `WEB_DIST_DIR=/app/apps/web/dist` and `NODE_ENV=production`, generates an entrypoint script
+3. **runtime** (`httpd:2.4` + `apk add --no-cache nodejs`) — Copies the built workspace to `/app`, sets `WEB_DIST_DIR=/app/apps/web/dist`, `NODE_ENV` (prod/test), and `API_PORT=80` as Dockerfile ENV, and bakes an entrypoint script at build time
+
+The runtime image is Apache httpd with Node.js added on top — **not** a plain Node image. Both processes run in the container (see Entrypoint).
 
 ### Entrypoint
 
-The generated `/app/entrypoint.sh` runs, from `/app/apps/api`:
+The entrypoint is written into the image at build time via `printf ... > /app/entrypoint.sh` (not generated at container startup). It runs, from `/app/apps/api`:
 
 ```sh
 npx prisma migrate deploy   # apply SQLite migrations
 npm run seed                # seed admin user + invite code
-exec node dist/server.js    # start Express on API_PORT
+node dist/server.js &       # start Express on API_PORT=80 (backgrounded)
+httpd-foreground            # run Apache in the foreground as PID 1
 ```
+
+So the Express server is started in the background and Apache httpd runs in the foreground. Both share port 80 inside the container; Traefik routes to the Express server.
 
 ### Runtime Characteristics
 
-- **Port**: exposes and listens on `4000` (not 80) — the Express app serves both the API (`/api/`) and the built SPA (`WEB_DIST_DIR`)
-- **No Apache**: no proxy, no `TOKEN`/`X-Auth-Token` injection, no blacklist, no MPM/rate-limit config — all of that lives inside the Express app
+- **Port**: Express listens on `API_PORT=80` (baked as a Dockerfile ENV) and serves both the API (`/api/`) and the built SPA (`WEB_DIST_DIR`). Apache httpd also runs on 80 in the same container.
+- **Apache present but minimal**: unlike the static sites, there is no `/api/` proxy to services, no `TOKEN`/`X-Auth-Token` injection, no blacklist, and no MPM/rate-limit config — all request handling for the app lives inside the Express server.
 - **No `/api/` proxy to services**: the app is self-contained; it does not call the Spring Boot backend
 - **Persistence**: a SQLite DB file and uploads directory live on a named volume mounted at `/data` (`DATABASE_URL=file:/data/tunde-divat.db`, `UPLOAD_DIR=/data/uploads`)
-- **Health check**: `/api/health` on port 4000 (static sites use `/metrics` on port 80)
-- **No `/metrics`**: the app is not a Prometheus scrape target (see the `monitoring` prompt)
+- **Health check**: `wget --spider http://localhost/metrics` (compose) and Traefik healthcheck path `/metrics`, both on port 80
+- **`/metrics` endpoint**: an Express route that returns the string `up 1`. It is used **only** by the Docker/Traefik health check — tunde-divat is **not** a Prometheus scrape target (see `monitoring.md`)
 
 See the `tunde-divat` repo's `AGENTS.md` for the app's internal architecture (Express + React + Prisma, AI image generation, auth).
 
@@ -213,6 +218,7 @@ Only static sites that call the API need a `TOKEN`. Static sites without API cal
 | Aspect | Prod (Dockerfile.npm) | Test (Dockerfile.npm.test) |
 |--------|-----------------------|----------------------------|
 | Image source | `compose.yaml` (pulls from GHCR) | `compose-test.yaml` (builds locally) |
+| `NODE_ENV` | `production` (Dockerfile ENV) | `development` (Dockerfile ENV) |
 | `AI_PROVIDER` | From `.env` (`TUNDE_DIVAT_AI_PROVIDER`) | `openai` (hardcoded) |
 | `OPENAI_API_KEY` | From `.env` (`TUNDE_DIVAT_OPENAI_API_KEY`) | `""` (empty) |
 | `CORS_ORIGIN` | `https://tundedivat.com` | `https://tunde-divat.localhost` |
@@ -221,7 +227,9 @@ Only static sites that call the API need a `TOKEN`. Static sites without API cal
 | Volume | Named volume `tunde-divat` → `/data` | Ephemeral (compose-managed) |
 | Network | External overlay `outsideworx` | External `services_default` |
 | Domain | `tundedivat.com` (no `www.` redirect) | `tunde-divat.localhost` |
-| Health check | `/api/health` on `:4000`, interval 1m | `/api/health` on `:4000`, interval 5s |
+| Health check | `/metrics` on port 80, interval 1m | `/metrics` on port 80, interval 5s |
+| Metrics endpoint | `/metrics` returns `up 1` | `/metrics` returns `up 1` |
+| Port | Exposes port 80 directly | Exposes port 80 directly |
 
 ## CI/CD (GitHub Actions)
 

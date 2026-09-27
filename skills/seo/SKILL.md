@@ -9,6 +9,12 @@ description: SEO conventions (robots.txt, sitemap.xml, metrics.txt, meta tags). 
 
 Every site repo contains three SEO/infrastructure files at the root: `robots.txt`, `sitemap.xml`, and `metrics.txt`. Content pages include HTML meta tags for search engines. Splash pages (orientation gates) have no meta tags.
 
+> **npm apps are the exception.** This skill applies only to the static Apache-served
+> sites. The dynamic npm app (`tunde-divat`) does not use these root files: `/metrics`
+> is an Express route (returns `up 1`), not a static `metrics.txt`, and its PWA/SEO assets
+> (`manifest.webmanifest`, `service-worker.js`) live under `apps/web/public/`. The
+> templates below do not apply to it.
+
 ## Required Files
 
 ### robots.txt

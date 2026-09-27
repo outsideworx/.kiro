@@ -56,7 +56,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    main_push["Push to sites/main"] --> matrix["Matrix build\nall 7 sites"]
+    main_push["Push to sites/main"] --> matrix["Matrix build\nall 8 sites"]
     repo_dispatch["repository_dispatch\nfrom site repo"] --> single["Build\nsingle site"]
     matrix --> ghcr["GHCR"]
     single --> ghcr

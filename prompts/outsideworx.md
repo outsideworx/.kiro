@@ -18,7 +18,7 @@ A self-hosted platform running multiple static websites and a shared backend on 
 | PostgreSQL | services | Persistent data store for all client data |
 | Spring Boot API | services | Java 25 backend with OAuth2 admin portal and token-based API auth |
 | Traefik | services | Reverse proxy with automatic TLS via Let's Encrypt |
-| tunde-divat | sites | Dynamic npm app (Node/Express + Vite SPA + own SQLite DB) built from `Dockerfile.npm`, served on port 4000 |
+| tunde-divat | sites | Dynamic npm app (Node/Express + Vite SPA + own SQLite DB) built from `Dockerfile.npm`, served on port 80 |
 
 Most sites are built from a shared Dockerfile into their own Apache httpd container; one site (`tunde-divat`) is a self-contained Node/Express + Vite application with its own SQLite database, built from a separate npm Dockerfile. Static sites that need dynamic content proxy API calls to the backend via internal networking; the npm app talks only to itself. All static sites get output rate limiting, request timeouts, IP blacklisting, and restrictive security headers out of the box. Work-in-progress sites can be protected with a lightweight cookie-based client secret without requiring full OAuth2.
 
