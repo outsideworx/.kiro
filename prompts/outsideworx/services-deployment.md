@@ -19,7 +19,7 @@ The deployment script handles both initial setup and updates.
 
 | Flag | Action |
 |------|--------|
-| `--install` | Installs `docker-compose-v2`, `git`, `maven`, `openjdk-25-jdk` via apt |
+| `--install` | Installs `docker-compose-v2`, `git`, `maven`, `npm`, `openjdk-25-jdk` via apt |
 | `--network` | Initializes Swarm (`docker swarm init --advertise-addr <IP>`) and creates the overlay network |
 | `--secrets` | Generates RSA 4096 key and stores as Docker secret |
 | (no flag) | Deploys/updates the stack |

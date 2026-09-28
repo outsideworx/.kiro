@@ -17,6 +17,7 @@ The runner must have the following installed and available on `PATH`:
 |------------|---------|---------|
 | Java (JDK) | services verify, services build | Compiles source, runs unit + integration tests, packages the JAR |
 | Maven | services verify, services build | Orchestrates the full build lifecycle (compile → test → package) |
+| Node.js / npm | host provisioning (`deploy.sh --install`) | Installed on the host; image builds run Node inside the `node:*-alpine` Docker stage |
 | Docker Engine | all builds, all deploys | Builds container images, pushes to GHCR, deploys Swarm stacks |
 | Docker Buildx | sites build, services build | Multi-stage image builds via `docker/build-push-action` |
 | Git | all workflows | Repository checkout and submodule initialization |

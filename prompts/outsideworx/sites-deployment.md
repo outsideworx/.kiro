@@ -2,7 +2,7 @@
 
 ## Overview
 
-The sites stack serves multiple websites, each built into its own container and routed by domain. Most sites are **static** (Apache httpd serving HTML/CSS/JS) and proxy API calls back to the services stack. One site (`tunde-divat`) is a **dynamic npm app** (Node/Express + Vite SPA with its own SQLite database) built from a separate Dockerfile.
+The sites stack serves multiple websites, each built into its own container and routed by domain. Most sites are **static** (Apache httpd serving HTML/CSS/JS) and proxy API calls back to the services stack. Some sites are **dynamic npm apps** (Node/Express + Vite SPA with their own SQLite database) built from a separate Dockerfile.
 
 ## Architecture
 
@@ -109,9 +109,9 @@ LogFormat "INFO %P --- ip=%a requestId=%{UNIQUE_ID}e: %r %>s" log_format
 
 The `CMD` runs a shell script that writes the `TOKEN` env var into an Apache config file at startup, then launches `httpd-foreground`.
 
-## Dockerfile — npm App (`tunde-divat`)
+## Dockerfile — npm Apps
 
-`Dockerfile.npm` (prod) and `Dockerfile.npm.test` (test) build the `tunde-divat` dynamic app. The two are nearly identical — the **only** difference is `NODE_ENV` (`production` in prod, `development` in test). The `NAME` build arg still selects the repo to clone, so the template stays multi-site-capable even though only one npm site exists today.
+`Dockerfile.npm` (prod) and `Dockerfile.npm.test` (test) build a dynamic npm app (currently `tunde-divat`). The two are nearly identical — the **only** difference is `NODE_ENV` (`production` in prod, `development` in test). The `NAME` build arg still selects the repo to clone, so the template stays multi-site-capable for any npm app.
 
 ### Build Stages
 

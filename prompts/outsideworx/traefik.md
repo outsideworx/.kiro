@@ -105,7 +105,7 @@ Currently defined:
 | soupkitchen | `soupkitchen.info`, `www.soupkitchen.info` | www-redirect |
 | tunde-divat | `tundedivat.com` | — (none) |
 
-All static sites listen on port `80` and use the `/metrics` health check. The `tunde-divat` npm app is also served on port `80` with a `/metrics` health check. The main difference from static sites is:
+All static sites listen on port `80` and use the `/metrics` health check. npm apps are also served on port `80` with a `/metrics` health check. The main differences from static sites are:
 - Single-host rule (no `www.` redirect)
 - No `www.` alternate domain
 

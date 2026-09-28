@@ -471,19 +471,19 @@ Sites without API access omit the `TOKEN` environment variable.
 
 #### npm App Variant
 
-A dynamic npm app (like `tunde-divat`) uses a different service shape — it is not an Apache static site:
+A dynamic npm app uses a different service shape — it is not an Apache static site (the current example is `tunde-divat`):
 
 ```yaml
-tunde-divat:
+<site-name>:
   environment:
-    AI_PROVIDER: $TUNDE_DIVAT_AI_PROVIDER
+    AI_PROVIDER: $<SITE_NAME>_AI_PROVIDER
     CORS_ORIGIN: https://<domain>
     DATABASE_URL: file:/data/<site-name>.db
-    OPENAI_API_KEY: $TUNDE_DIVAT_OPENAI_API_KEY
-    SEED_ADMIN_PASSWORD: $TUNDE_DIVAT_SEED_ADMIN_PASSWORD
-    SEED_ADMIN_USERNAME: $TUNDE_DIVAT_SEED_ADMIN_USERNAME
-    SEED_INVITE_CODE: $TUNDE_DIVAT_SEED_INVITE_CODE
-    SESSION_SECRET: $TUNDE_DIVAT_SESSION_SECRET
+    OPENAI_API_KEY: $<SITE_NAME>_OPENAI_API_KEY
+    SEED_ADMIN_PASSWORD: $<SITE_NAME>_SEED_ADMIN_PASSWORD
+    SEED_ADMIN_USERNAME: $<SITE_NAME>_SEED_ADMIN_USERNAME
+    SEED_INVITE_CODE: $<SITE_NAME>_SEED_INVITE_CODE
+    SESSION_SECRET: $<SITE_NAME>_SESSION_SECRET
     UPLOAD_DIR: /data/uploads
   image: ghcr.io/outsideworx/<site-name>:latest
   networks:
@@ -529,7 +529,7 @@ For generic scrape target rules, see the `monitoring` prompt. Site-specific nami
 - `prometheus.yaml` (prod): add `"sites_<site-name>"` to targets
 - `prometheus-test.yaml` (test): add `"<site-name>"` to targets
 
-An npm app that does not expose real Prometheus metrics (like `tunde-divat`) is **not** added to the scrape targets. It serves a `/metrics` Express route returning the string `up 1`, which is used only by the Traefik/Docker health check — not by Prometheus.
+npm apps that do not expose real Prometheus metrics are **not** added to the scrape targets. They serve a `/metrics` Express route returning the string `up 1`, which is used only by the Traefik/Docker health check — not by Prometheus.
 
 ### Cache Volume (image-serving clients only)
 
