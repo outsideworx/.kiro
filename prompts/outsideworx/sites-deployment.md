@@ -255,6 +255,42 @@ Two distinct deployment paths exist:
 
 The cache volume is a Docker named volume (`services_cache`, external — created by the services stack's `utils` container as `cache`). It is no longer a host bind mount; nothing under `/home/outsideworx/utils` is involved anymore. Static sites that serve cached images (`come-in-and-find-out`, `soupart`) mount the whole volume read-only at `/htdocs/cache` (not a per-client subdirectory). In test, both sites share the same named volume mounted at `/htdocs/cache`. The `tunde-divat` volume is a separate Docker named volume holding the app's own SQLite database and uploaded images — not a cache of the services DB.
 
+## Fallback / Mirror URLs (`/clients/<name>`)
+
+Every **static** (non-npm) site is also reachable as a mirror under the `outsideworx` site at `outsideworx.net/clients/<name>` (e.g. `outsideworx.net/clients/soupart`). This is a safety net: if an official domain is discontinued or its DNS/TLS lapses, the content is still served from the `outsideworx` container.
+
+| Site | Official domain | Mirror URL |
+|------|-----------------|------------|
+| come-in-and-find-out | come-in-and-find-out.ch | `outsideworx.net/clients/come-in-and-find-out` |
+| duckumbrella | duckumbrella.net | `outsideworx.net/clients/duckumbrella` |
+| gaiapeeps | gaiapeeps.com | `outsideworx.net/clients/gaiapeeps` |
+| igli | igli.info | `outsideworx.net/clients/igli` |
+| soupart | soupart.net | `outsideworx.net/clients/soupart` |
+| soupkitchen | soupkitchen.info | `outsideworx.net/clients/soupkitchen` |
+
+No npm site is mirrored — an npm site is a self-contained dynamic app (its own server + database) with its own container, not static content that can be copied into the `outsideworx` image.
+
+### How the Mirror Works (git submodules)
+
+Each static site repo is added as a **git submodule** of the `outsideworx` repo under `clients/<name>/` (the same mechanism the WIP `thegreen` site uses — see `sites-wip.md`):
+
+```
+outsideworx repo
+├── .gitmodules              # Declares one submodule per static site (bare name, no clients/ prefix)
+└── clients/
+    ├── come-in-and-find-out/  # Submodule → github.com/outsideworx/come-in-and-find-out
+    ├── duckumbrella/
+    ├── gaiapeeps/
+    ├── igli/
+    ├── soupart/
+    ├── soupkitchen/
+    └── thegreen/              # WIP site (secret-gated)
+```
+
+At Docker build time the `outsideworx` image's `fetcher` stage clones the `outsideworx` repo and runs `git submodule update --init --depth 1`, so every submodule's content is checked out into `/usr/local/apache2/htdocs/clients/<name>/`. Apache's `MultiViews` + `DirectoryIndex` on `htdocs/clients/` then serve each site at `outsideworx.net/clients/<name>`. Submodule URLs in `.gitmodules` are HTTPS (`https://github.com/outsideworx/<name>.git`) so the anonymous build clone can initialize them without SSH credentials.
+
+Because the mirror is a submodule pointer, its content only refreshes when the `outsideworx` repo bumps the pointer (`git submodule update --remote clients/<name>`, commit, push) and rebuilds — it is not automatically in lockstep with the live site's own deploy. Unlike `thegreen`, these mirrors are **not** secret-gated (`CLIENT_SECRET_PATH` covers only `/clients/thegreen/`), so they are publicly reachable.
+
 ## File Layout
 
 ```

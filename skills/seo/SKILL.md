@@ -92,6 +92,8 @@ Single-URL sitemap pointing to the main crawlable page.
 | outsideworx | `https://outsideworx.net` |
 | thegreen (WIP) | `https://outsideworx.net/clients/thegreen/pages/home` |
 
+These `<loc>` values point at each site's official domain, which is correct while that domain is live. If an official domain is ever discontinued and the `outsideworx.net/clients/<name>` mirror becomes the main entrypoint, these `<loc>` entries (and the `robots.txt`/canonical URLs alongside them) will need to be refactored to the mirror path.
+
 ### metrics.txt
 
 Static health check file used by Prometheus for site-level scraping.

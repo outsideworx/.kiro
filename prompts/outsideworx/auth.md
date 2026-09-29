@@ -120,6 +120,8 @@ app:
 
 Tokens are not present in `application.yaml`. Spring's relaxed binding maps the environment variable `APP_CLIENTS_CIAFO_TOKEN` to `app.clients.ciafo.token` automatically — underscores become dots, uppercase becomes lowercase. No explicit YAML entry is needed.
 
+Each `origin` is the site's official domain, used for CORS on that client's API endpoints. If an official domain is discontinued and the `outsideworx.net/clients/<name>` mirror becomes the main entrypoint, the corresponding `origin` (and the `@CrossOrigin` it feeds) will need to be refactored to `https://outsideworx.net`, since API calls from the mirror originate from that host.
+
 Mapped to `Properties.clients` (Map<String, Client>) where each `Client` has: `caller`, `origin`, `token`.
 
 #### Token Resolution Flow

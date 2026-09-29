@@ -109,6 +109,8 @@ All static sites listen on port `80` and use the `/metrics` health check. npm ap
 - Single-host rule (no `www.` redirect)
 - No `www.` alternate domain
 
+Every static (non-npm) site is additionally reachable as a fallback mirror at `outsideworx.net/clients/<name>` — served statically from the `outsideworx` container, where each static site repo is checked out as a git submodule under `clients/<name>/` and served by Apache from `htdocs/clients/`. Traefik is not involved beyond matching the existing `outsideworx` host; the mirror content is plain static files, not a proxied backend. If an official domain is discontinued, the mirror still works. No npm site is mirrored (npm sites are self-contained dynamic apps, not static content that can be copied into the `outsideworx` image).
+
 ## Prod vs Test
 
 | Aspect | Prod (Swarm) | Test (Compose) |
