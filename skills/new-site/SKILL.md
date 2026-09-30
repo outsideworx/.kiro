@@ -19,7 +19,7 @@ Every site falls into one of these categories. Determine the archetype before sc
 |-----------|--------------|---------|-------------|
 | Portfolio/Gallery | soupart, come-in-and-find-out | Yes | Paginated images from API, category navigation |
 | Link Collector | duckumbrella, gaiapeeps | Optional | Social links or API-fetched embeds |
-| Informational | igli, soupkitchen, outsideworx | No | Static content, no API calls |
+| Informational | igli, soupkitchen, outsideworx | No | Static content, no API calls of its own (outsideworx has an `APP_CLIENTS_WORX_TOKEN`, used to proxy `/api/` calls from the `/clients/<name>` mirror sites) |
 | WIP (submodule) | thegreen | No (initially) | Hosted under outsideworx.net, client-secret protected |
 | Dynamic npm app | tunde-divat | Self-contained | Node/Express + Vite SPA + own SQLite DB, built from `Dockerfile.npm`, port 80 |
 

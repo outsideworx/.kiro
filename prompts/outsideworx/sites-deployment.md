@@ -186,6 +186,7 @@ update_config:
 | `APP_CLIENTS_PEEPS_TOKEN` | gaiapeeps | API auth token (injected as `TOKEN`) |
 | `APP_CLIENTS_SOUP_TOKEN` | soupart | API auth token (injected as `TOKEN`) |
 | `APP_CLIENTS_THEGREEN_SECRET` | outsideworx | Client secret for cookie-based access control (injected as `CLIENT_SECRET`) |
+| `APP_CLIENTS_WORX_TOKEN` | outsideworx | API auth token (injected as `TOKEN`) |
 | `TUNDE_DIVAT_AI_PROVIDER` | tunde-divat | AI image provider (`openai` or `mock`) → `AI_PROVIDER` |
 | `TUNDE_DIVAT_OPENAI_API_KEY` | tunde-divat | OpenAI API key → `OPENAI_API_KEY` (only used when provider is `openai`) |
 | `TUNDE_DIVAT_SEED_ADMIN_PASSWORD` | tunde-divat | Seeded admin password → `SEED_ADMIN_PASSWORD` |
@@ -193,7 +194,7 @@ update_config:
 | `TUNDE_DIVAT_SEED_INVITE_CODE` | tunde-divat | Registration invite code → `SEED_INVITE_CODE` |
 | `TUNDE_DIVAT_SESSION_SECRET` | tunde-divat | JWT/session signing secret (≥32 chars) → `SESSION_SECRET` |
 
-Only static sites that call the API need a `TOKEN`. Static sites without API calls (duckumbrella, igli, outsideworx, soupkitchen) have no `TOKEN` environment variable. The `tunde-divat` npm app uses none of the `TOKEN`/`CLIENT_SECRET` mechanism — it has its own `TUNDE_DIVAT_*` variables (mapped to the Express app's env in compose). `DATABASE_URL`, `UPLOAD_DIR`, and `CORS_ORIGIN` are set as literals in `compose.yaml`, not via `.env`.
+Only static sites that call the API need a `TOKEN`. Static sites without API calls (duckumbrella, igli, soupkitchen) have no `TOKEN` environment variable. `outsideworx` has its own `TOKEN` (`APP_CLIENTS_WORX_TOKEN`, caller `outsideworx`) — in addition to its `CLIENT_SECRET` used to gate the `thegreen` submodule. It actively uses this token: the `/clients/<name>` mirror instances of come-in-and-find-out, gaiapeeps, and soupart are served from the `outsideworx` container, and their frontend JS makes `/api/` calls that the `outsideworx` Apache proxies to services, injecting `X-Caller-Id: outsideworx` and the WORX token. The `tunde-divat` npm app uses none of the `TOKEN`/`CLIENT_SECRET` mechanism — it has its own `TUNDE_DIVAT_*` variables (mapped to the Express app's env in compose). `DATABASE_URL`, `UPLOAD_DIR`, and `CORS_ORIGIN` are set as literals in `compose.yaml`, not via `.env`.
 
 ## Prod vs Test
 
@@ -248,7 +249,7 @@ Two distinct deployment paths exist:
 | duckumbrella | duckumbrella.net | static | No | — |
 | gaiapeeps | gaiapeeps.com | static | Yes | — |
 | igli | igli.info | static | No | — |
-| outsideworx | outsideworx.net | static | No | — |
+| outsideworx | outsideworx.net | static | Yes | — |
 | soupart | soupart.net | static | Yes | `services_cache` → `/htdocs/cache` (ro) |
 | soupkitchen | soupkitchen.info | static | No | — |
 | tunde-divat | tundedivat.com | npm | No (self-contained) | Named volume `tunde-divat` → `/data` (SQLite + uploads) |

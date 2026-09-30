@@ -116,6 +116,9 @@ app:
     soup:
       caller: "soupart"
       origin: "https://soupart.net"
+    worx:
+      caller: "outsideworx"
+      origin: "https://outsideworx.net"
 ```
 
 Tokens are not present in `application.yaml`. Spring's relaxed binding maps the environment variable `APP_CLIENTS_CIAFO_TOKEN` to `app.clients.ciafo.token` automatically — underscores become dots, uppercase becomes lowercase. No explicit YAML entry is needed.

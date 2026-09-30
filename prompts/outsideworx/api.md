@@ -171,7 +171,7 @@ Frontend passes `offset` as a URL query parameter. Navigation links increment/de
 | gaiapeeps | `/api/gaiapeeps` | No |
 | duckumbrella | — | — |
 | igli | — | — |
-| outsideworx | — | — |
+| outsideworx | (proxies the mirror sites' endpoints: `/api/come-in-and-find-out`, `/api/cache/come-in-and-find-out`, `/api/callback`, `/api/cache/soupart`, `/api/gaiapeeps` — all as caller `outsideworx`) | via mirrors |
 | soupkitchen | — | — |
 
 ## Metrics
