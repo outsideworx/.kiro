@@ -18,7 +18,7 @@ The `utils/` directory houses operational scripts and background services that r
 | Script loading | Skips `*.draft.py` files | Runs ALL `*.py` files including drafts |
 | DB credentials | `DB_USERNAME`/`DB_PASSWORD` from `.env` | `DB_USERNAME=postgres`, `DB_PASSWORD=""` |
 | DB host | `DB_HOST=services_postgres` | `DB_HOST=postgres` |
-| Volumes | Persistent host paths (`/home/outsideworx/utils`) | Named volume `cache:` for cache output (shared with sites as `services_cache`), `./utils` bind mount for scripts |
+| Volumes | Named volume `cache:` for cache output (exposed to sites as `services_cache`), `./utils` bind mount for scripts | Named volume `cache:` for cache output (shared with sites as `services_cache`), `./utils` bind mount for scripts |
 | ntfy volume | Host path `/home/outsideworx/ntfy` | Named volume `ntfy:` |
 
 ## Log Format
@@ -39,8 +39,8 @@ Periodically syncs base64-encoded images from PostgreSQL to disk as JPEG files. 
 - Polls every 60 seconds
 - Tracks changes via a `hash` column on each table — only re-exports rows whose hash changed
 - Persists known hashes to `/utils/cache/hashes.properties`
-- Writes last successful scan time to `/utils/cache/<client>/last_scan.txt` (per-client)
-- Output directories: `/utils/cache/ciafo/`, `/utils/cache/soup/`
+- Writes last successful scan time to `/utils/cache/<site>/last_scan.txt` (per-site)
+- Output directories: `/utils/cache/come-in-and-find-out/`, `/utils/cache/soupart/` (named after the site repo, not the DB table `ciafo`/`soup`)
 - File naming: `<categoryId>_<itemId>_<label>.jpg` (e.g., `3_42_thumbnail1.jpg`)
 - Category index: `categories.properties` per client with category names and ordered item IDs
 - Handles table-not-found gracefully (logs error, continues)
@@ -63,7 +63,7 @@ Categories are sorted alphabetically and assigned numeric IDs starting at 1. The
 
 #### Hashes Format
 
-`hashes.properties` uses dot-separated keys: `<client>.<itemId>=<hash>` (e.g., `ciafo.42=a1b2c3d4`).
+`hashes.properties` uses dot-separated keys: `<site>.<itemId>=<hash>` (e.g., `come-in-and-find-out.42=a1b2c3d4`). The prefix is the site-name subdir, not the DB table name.
 
 ## Operations Scripts
 
@@ -75,7 +75,7 @@ Pretty-prints a table of all running containers with CPU %, RAM (MB), network I/
 
 ### docker-wipe.sh
 
-Nuclear option: removes both stacks, all secrets, all images, prunes the system, deletes deployment directories and cache, then runs `apt upgrade`. Interactive confirmation required.
+Nuclear option: removes both stacks, all secrets, all images, prunes the system, deletes the deployment directories (`/home/outsideworx/services`, `/home/outsideworx/sites`), then runs `apt upgrade`. Cache data lives in the `cache` Docker named volume and is removed by the `docker system prune -af` step, not by a directory delete. Interactive confirmation required.
 
 ### system-swap.sh
 

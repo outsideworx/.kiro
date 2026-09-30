@@ -9,6 +9,12 @@ description: SEO conventions (robots.txt, sitemap.xml, metrics.txt, meta tags). 
 
 Every site repo contains three SEO/infrastructure files at the root: `robots.txt`, `sitemap.xml`, and `metrics.txt`. Content pages include HTML meta tags for search engines. Splash pages (orientation gates) have no meta tags.
 
+> **npm apps are the exception.** This skill applies only to the static Apache-served
+> sites. The dynamic npm app (`tunde-divat`) does not use these root files: `/metrics`
+> is an Express route (returns `up 1`), not a static `metrics.txt`, and its PWA/SEO assets
+> (`manifest.webmanifest`, `service-worker.js`) live under `apps/web/public/`. The
+> templates below do not apply to it.
+
 ## Required Files
 
 ### robots.txt
@@ -85,6 +91,8 @@ Single-URL sitemap pointing to the main crawlable page.
 | soupkitchen | `https://soupkitchen.info` |
 | outsideworx | `https://outsideworx.net` |
 | thegreen (WIP) | `https://outsideworx.net/clients/thegreen/pages/home` |
+
+These `<loc>` values point at each site's official domain, which is correct while that domain is live. If an official domain is ever discontinued and the `outsideworx.net/clients/<name>` mirror becomes the main entrypoint, these `<loc>` entries (and the `robots.txt`/canonical URLs alongside them) will need to be refactored to the mirror path.
 
 ### metrics.txt
 

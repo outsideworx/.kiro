@@ -19,9 +19,9 @@ Every site falls into one of these categories. Determine the archetype before sc
 |-----------|--------------|---------|-------------|
 | Portfolio/Gallery | soupart, come-in-and-find-out | Yes | Paginated images from API, category navigation |
 | Link Collector | duckumbrella, gaiapeeps | Optional | Social links or API-fetched embeds |
-| Informational | igli, soupkitchen, outsideworx | No | Static content, no API calls |
+| Informational | igli, soupkitchen, outsideworx | No | Static content, no API calls of its own (outsideworx has an `APP_CLIENTS_WORX_TOKEN`, used to proxy `/api/` calls from the `/clients/<name>` mirror sites) |
 | WIP (submodule) | thegreen | No (initially) | Hosted under outsideworx.net, client-secret protected |
-| Dynamic npm app | tunde-divat | Self-contained | Node/Express + Vite SPA + own SQLite DB, built from `Dockerfile.npm`, port 4000 |
+| Dynamic npm app | tunde-divat | Self-contained | Node/Express + Vite SPA + own SQLite DB, built from `Dockerfile.npm`, port 80 |
 
 The first four archetypes are **static** sites served by Apache from the shared `Dockerfile`. The **Dynamic npm app** archetype is fundamentally different: it is a full npm-workspaces monorepo whose Express server serves both its own REST API and the built SPA, with its own database — it does not use Apache, the shared static file layout, or the Spring Boot API. Most of this skill (entry-point patterns, hotspot navigation, `layout.css`, the API fetch/jQuery patterns) applies only to static sites. For an npm app, the repo's own `AGENTS.md` and `package.json` scripts define the structure; only the "Infrastructure Wiring" section below applies.
 
@@ -471,19 +471,19 @@ Sites without API access omit the `TOKEN` environment variable.
 
 #### npm App Variant
 
-A dynamic npm app (like `tunde-divat`) uses a different service shape — it is not an Apache static site:
+A dynamic npm app uses a different service shape — it is not an Apache static site (the current example is `tunde-divat`):
 
 ```yaml
-tunde-divat:
+<site-name>:
   environment:
-    AI_PROVIDER: $TUNDE_DIVAT_AI_PROVIDER
+    AI_PROVIDER: $<SITE_NAME>_AI_PROVIDER
     CORS_ORIGIN: https://<domain>
     DATABASE_URL: file:/data/<site-name>.db
-    OPENAI_API_KEY: $TUNDE_DIVAT_OPENAI_API_KEY
-    SEED_ADMIN_PASSWORD: $TUNDE_DIVAT_SEED_ADMIN_PASSWORD
-    SEED_ADMIN_USERNAME: $TUNDE_DIVAT_SEED_ADMIN_USERNAME
-    SEED_INVITE_CODE: $TUNDE_DIVAT_SEED_INVITE_CODE
-    SESSION_SECRET: $TUNDE_DIVAT_SESSION_SECRET
+    OPENAI_API_KEY: $<SITE_NAME>_OPENAI_API_KEY
+    SEED_ADMIN_PASSWORD: $<SITE_NAME>_SEED_ADMIN_PASSWORD
+    SEED_ADMIN_USERNAME: $<SITE_NAME>_SEED_ADMIN_USERNAME
+    SEED_INVITE_CODE: $<SITE_NAME>_SEED_INVITE_CODE
+    SESSION_SECRET: $<SITE_NAME>_SESSION_SECRET
     UPLOAD_DIR: /data/uploads
   image: ghcr.io/outsideworx/<site-name>:latest
   networks:
@@ -497,11 +497,13 @@ tunde-divat:
       - traefik.http.routers.<site-name>.rule=Host(`<domain>`)
       - traefik.http.routers.<site-name>.tls.certresolver=letsencrypt
       - traefik.http.services.<site-name>.loadbalancer.healthcheck.interval=1m
-      - traefik.http.services.<site-name>.loadbalancer.healthcheck.path=/api/health
-      - traefik.http.services.<site-name>.loadbalancer.server.port=4000
+      - traefik.http.services.<site-name>.loadbalancer.healthcheck.path=/metrics
+      - traefik.http.services.<site-name>.loadbalancer.server.port=80
 ```
 
-Differences from a static site: no `NAME`/`TOKEN` env vars, no `www-redirect` middleware (single host rule), a named volume for the SQLite DB + uploads (declared under top-level `volumes:`), server port `4000`, and a `/api/health` health check instead of `/metrics`. Set `CORS_ORIGIN` to the exact public origin the SPA is served from (the real domain, e.g. `https://<domain>`) — a mismatch blocks the app's own API calls.
+The named volume must also be declared under the top-level `volumes:` key (a bare `<site-name>:` entry) alongside `services_cache`.
+
+Differences from a static site: no `NAME`/`TOKEN` env vars, no `www-redirect` middleware (single host rule), a named volume for the SQLite DB + uploads (declared under top-level `volumes:`), and a `/metrics` health check endpoint. There is **no `ports:` mapping** — Traefik routes to the container on port 80, and the Express server listens on port 80 (`API_PORT=80` is baked into `Dockerfile.npm`, not set in compose). Set `CORS_ORIGIN` to the exact public origin the SPA is served from (the real domain, e.g. `https://<domain>`) — a mismatch blocks the app's own API calls. For the test-compose counterpart, use `Dockerfile.npm.test`, hardcoded seed/session values, `AI_PROVIDER=openai`, `OPENAI_API_KEY=""`, a `*.localhost` `CORS_ORIGIN`, `tls=true`, and healthcheck interval `5s`.
 
 ### Build Pipeline
 
@@ -527,7 +529,7 @@ For generic scrape target rules, see the `monitoring` prompt. Site-specific nami
 - `prometheus.yaml` (prod): add `"sites_<site-name>"` to targets
 - `prometheus-test.yaml` (test): add `"<site-name>"` to targets
 
-An npm app that does not expose a Prometheus `/metrics` endpoint (like `tunde-divat`) is **not** added to the scrape targets — its health is checked by Traefik/Docker via `/api/health` only.
+npm apps that do not expose real Prometheus metrics are **not** added to the scrape targets. They serve a `/metrics` Express route returning the string `up 1`, which is used only by the Traefik/Docker health check — not by Prometheus.
 
 ### Cache Volume (image-serving clients only)
 
@@ -537,7 +539,7 @@ Prod (`sites/compose.yaml`):
 
 ```yaml
 volumes:
-  - /home/outsideworx/utils/cache/<CLIENT>:/usr/local/apache2/htdocs/cache/<CLIENT>:ro
+  - services_cache:/usr/local/apache2/htdocs/cache:ro
 ```
 
 Test (`sites/compose-test.yaml`):
@@ -547,4 +549,4 @@ volumes:
   - services_cache:/usr/local/apache2/htdocs/cache:ro
 ```
 
-In test, `services_cache` is a shared named volume (declared `external: true`). In prod, each site mounts only its own client subdirectory from the host bind mount.
+In both prod and test, `services_cache` is a shared external named volume (declared `external: true`) populated by the services stack's `utils` container. The whole volume is mounted read-only at `/htdocs/cache` — there is no per-client subdirectory bind mount anymore.

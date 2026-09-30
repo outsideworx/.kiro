@@ -105,11 +105,11 @@ Currently defined:
 | soupkitchen | `soupkitchen.info`, `www.soupkitchen.info` | www-redirect |
 | tunde-divat | `tundedivat.com` | — (none) |
 
-All static sites listen on port `80` and use the `/metrics` health check. Two things make `tunde-divat` (the npm app) different in its Traefik labels:
+All static sites listen on port `80` and use the `/metrics` health check. npm apps are also served on port `80` with a `/metrics` health check. The main differences from static sites are:
+- Single-host rule (no `www.` redirect)
+- No `www.` alternate domain
 
-- **Port `4000`**: `traefik.http.services.tunde-divat.loadbalancer.server.port=4000` — its Express server, not Apache on 80.
-- **Health check `/api/health`**: `...loadbalancer.healthcheck.path=/api/health` instead of `/metrics`.
-- **No `www-redirect` and single-host rule**: `rule=Host(`tundedivat.com`)` only (no `www.` alternate, no middleware) — the app is served from the apex domain only.
+Every static (non-npm) site is additionally reachable as a fallback mirror at `outsideworx.net/clients/<name>` — served statically from the `outsideworx` container, where each static site repo is checked out as a git submodule under `clients/<name>/` and served by Apache from `htdocs/clients/`. Traefik is not involved beyond matching the existing `outsideworx` host; the mirror content is plain static files, not a proxied backend. If an official domain is discontinued, the mirror still works. No npm site is mirrored (npm sites are self-contained dynamic apps, not static content that can be copied into the `outsideworx` image).
 
 ## Prod vs Test
 

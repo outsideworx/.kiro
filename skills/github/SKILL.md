@@ -153,6 +153,7 @@ Push the initial commit to `main`. Confirm:
 - The site repo's dispatch workflow runs
 - The sites repo's `build` job triggers via `repository_dispatch`
 - The image appears at `ghcr.io/outsideworx/<site-name>:latest`
+- The `build` job's final step force-updates the running service (`sites_<site-name>`) — the change goes live automatically (no manual deploy needed)
 
 ## How to Add a Deploy Workflow
 
@@ -244,5 +245,5 @@ The `workflow_run` trigger chains this after `Verify` succeeds on `main`. Replac
 
 - GHCR login uses `DISPATCH_TOKEN` as password and `github.actor` as username
 - All images tagged `:latest` only (no semver, no SHA tags)
-- Deploy is always manual — never auto-deploys
+- Site content changes auto-deploy: a push to a site repo dispatches the `build` job, which force-updates the running Swarm service (`docker service update --force sites_<name>`) after pushing the image. Only stack-level changes (compose, `.env`, adding/removing services) need the manual `deploy.yaml`. The matrix `build-sites` job (push to `sites/main`) rebuilds all images to GHCR but does **not** update running services.
 - YAML ordering rules are in the `coding-conventions` steering doc

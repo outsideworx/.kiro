@@ -17,6 +17,7 @@ The runner must have the following installed and available on `PATH`:
 |------------|---------|---------|
 | Java (JDK) | services verify, services build | Compiles source, runs unit + integration tests, packages the JAR |
 | Maven | services verify, services build | Orchestrates the full build lifecycle (compile → test → package) |
+| Node.js / npm | host provisioning (`deploy.sh --install`) | Installed on the host; image builds run Node inside the `node:*-alpine` Docker stage |
 | Docker Engine | all builds, all deploys | Builds container images, pushes to GHCR, deploys Swarm stacks |
 | Docker Buildx | sites build, services build | Multi-stage image builds via `docker/build-push-action` |
 | Git | all workflows | Repository checkout and submodule initialization |
@@ -56,7 +57,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    main_push["Push to sites/main"] --> matrix["Matrix build\nall 7 sites"]
+    main_push["Push to sites/main"] --> matrix["Matrix build\nall 8 sites"]
     repo_dispatch["repository_dispatch\nfrom site repo"] --> single["Build\nsingle site"]
     matrix --> ghcr["GHCR"]
     single --> ghcr
@@ -65,7 +66,7 @@ flowchart LR
 ```
 
 - **Build — push** (`build.yaml`, `build-sites` job): On push to `main`, builds all sites in parallel via a matrix (`strategy.matrix.include`). Each entry sets the `NAME` build arg; the `tunde-divat` entry also sets `type: npm`. The Dockerfile is selected dynamically: `file: Dockerfile${{ matrix.type && format('.{0}', matrix.type) || '' }}` — no type → `Dockerfile`, `npm` → `Dockerfile.npm`.
-- **Build — dispatch** (`build.yaml`, `build` job): On a `repository_dispatch` with `event_type: build-sites`, builds only the site named in `client_payload.name`, selecting the Dockerfile from `client_payload.type` the same way. It then force-updates the running Swarm service (`docker service update --force ... sites_<name>`).
+- **Build — dispatch** (`build.yaml`, `build` job): On a `repository_dispatch` with `event_type: build-sites`, builds only the site named in `client_payload.name`, selecting the Dockerfile from `client_payload.type` the same way. Its final step then **auto-deploys** the new image by force-updating the running Swarm service (`docker service update --force --with-registry-auth --image ghcr.io/outsideworx/<name>:latest sites_<name>`). This is the live deployment path for site content — a push to a site repo goes to production with no manual step. (The matrix `build-sites` job does **not** do this — it only pushes images to GHCR.)
 - **Deploy** (`deploy.yaml`): Same pattern as services — checks out repo, writes `.env`, runs `deploy.sh` on the host.
 
 ## Site Repo Dispatch

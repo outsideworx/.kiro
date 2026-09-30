@@ -15,7 +15,7 @@ Both `services` and `sites` stacks attach to this network. There are no per-serv
 Because the network is shared, any container can reach any other container regardless of which stack it belongs to. This enables:
 - Traefik (in `services` stack) routing traffic to site containers (in `sites` stack)
 - Site containers (in `sites` stack) proxying API requests to the services app (in `services` stack)
-- Prometheus (in `services` stack) scraping metrics from the static site containers (in `sites` stack; the `tunde-divat` npm app exposes no metrics)
+- Prometheus (in `services` stack) scraping metrics from the static site containers (in `sites` stack; npm apps expose no metrics)
 
 ## Swarm VIP DNS (Prod)
 
@@ -119,7 +119,7 @@ graph TB
 
     subgraph sites stack
         sites["sites\n(Apache :80 each)"]
-        tunde["tunde-divat\n(Express :4000)"]
+        tunde["tunde-divat\n(Express :80)"]
     end
 
     Internet -->|":80/:443"| traefik
@@ -151,10 +151,10 @@ graph TB
 
 ### Reading the Graph
 
-- **Traefik** is the single ingress point. It terminates TLS and routes to all labeled backend services based on the `Host` header: 4 in the services stack (authelia, grafana, ntfy, services) and all sites in the sites stack (each on its own domain). The `tunde-divat` npm app is also routed here, but to port `4000` (its Express server) instead of `80`.
-- **Sites → services** is an internal connection (Apache `ProxyPass`), not routed through Traefik. Only the 3 sites with API tokens (come-in-and-find-out, gaiapeeps, soupart) make these calls. The `tunde-divat` app makes **no** such call — it is self-contained (own Express API + SQLite), never reaching the Spring Boot backend or PostgreSQL.
+- **Traefik** is the single ingress point. It terminates TLS and routes to all labeled backend services based on the `Host` header: 4 in the services stack (authelia, grafana, ntfy, services) and all sites in the sites stack (each on its own domain). npm apps are also routed here, to port `80` (their Express server).
+- **Sites → services** is an internal connection (Apache `ProxyPass`), not routed through Traefik. The 4 sites provisioned with API tokens (come-in-and-find-out, gaiapeeps, soupart, outsideworx) make these calls. `outsideworx` uses its token when serving the `/clients/<name>` mirror instances of come-in-and-find-out, gaiapeeps, and soupart — their frontend JS calls `/api/`, which the `outsideworx` Apache proxies with `X-Caller-Id: outsideworx`. npm apps make **no** such call — they are self-contained (own Express API + SQLite), never reaching the Spring Boot backend or PostgreSQL.
 - **Grafana → authelia** is also internal (OIDC token exchange), not through Traefik.
-- **Prometheus** scrapes every service that exposes metrics (prod): services_authelia:81, services_loki:80, services_ntfy:81, services_postgres-exporter:80, services_promtail:80, services-services:81 (alias), services_traefik:81, and the 7 static sites on :80. The `tunde-divat` npm app is **not** scraped — it exposes no `/metrics` endpoint. In test, only 3 sites are scraped (come-in-and-find-out, gaiapeeps, soupart).
+- **Prometheus** scrapes every service that exposes metrics (prod): services_authelia:81, services_loki:80, services_ntfy:81, services_postgres-exporter:80, services_promtail:80, services-services:81 (alias), services_traefik:81, and the 7 static sites on :80. In test, the 3 statically-scraped sites are targeted (see `monitoring.md`). npm apps are **not** scraped — their `/metrics` (returns `up 1`) is only a health-check endpoint.
 - **Promtail** runs in global mode (one instance per Swarm node) and pushes logs from all containers to Loki.
 
 ## Detailed Communication Paths
@@ -178,7 +178,7 @@ graph TB
 | postgres-exporter | services_postgres | PostgreSQL :5432 | DB metrics |
 | utils (cache.py) | services_postgres | PostgreSQL :5432 | Image sync |
 | sites (Apache) | services_services | HTTP :80 | API proxy (`/api/`) |
-| traefik | sites_tunde-divat | HTTP :4000 | Reverse proxy routing (Express app) |
+| traefik | sites_tunde-divat | HTTP :80 | Reverse proxy routing (Express app) |
 | traefik | all labeled services | HTTP :80 | Reverse proxy routing |
 
 ### Test (Docker Compose Short Names)
@@ -205,10 +205,9 @@ graph TB
 
 | Port | Used for |
 |------|----------|
-| 80 | Default HTTP — business traffic and metrics on some services (loki, postgres-exporter, promtail) |
+| 80 | Default HTTP — business traffic and metrics on some services (loki, postgres-exporter, promtail, all sites) |
 | 81 | Dedicated metrics/actuator (authelia, ntfy, services, traefik) |
 | 443 | HTTPS (Traefik only) |
-| 4000 | tunde-divat Express app (API + SPA), prod and test |
 | 5432 | PostgreSQL |
 | 8080 | Spring Boot app in test mode (on host) |
 | 8081 | Spring Boot actuator in test mode (on host) |
