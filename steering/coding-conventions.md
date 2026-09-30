@@ -203,13 +203,6 @@ setup_logging("app-name")
 
 ## Bash
 
-### Script Types
-
-Two categories with different conventions:
-
-1. **Deployment scripts** (`deploy.sh`) — `#!/bin/bash`, `set -e` after variable declarations
-2. **Operations scripts** (`operations/*.sh`) — `#!/bin/bash` or `#!/usr/bin/env bash`, `set -euo pipefail` for strict mode
-
 ### Structure
 
 - Shebang line first

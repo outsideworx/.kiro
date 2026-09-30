@@ -177,7 +177,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          set -e
           echo "${{ secrets.ENV }}" > .env
           ./deploy.sh "${{ github.event.inputs.flags }}"
 ```
