@@ -8,19 +8,19 @@ AI-enabled from code to canvas — but never generic. We use AI to move faster a
 
 ## Architecture
 
-A self-hosted platform running multiple static websites and a shared backend on a single Docker Swarm node. Two stacks — **services** (backend + infrastructure) and **sites** (websites) — share a single overlay network.
+A self-hosted platform running multiple client websites and a shared backend on a single Docker Swarm node. Two stacks — **services** (backend + infrastructure) and **sites** (websites — static Apache sites and dynamic npm apps) — share a single overlay network.
 
 | Component | Stack | Description |
 |-----------|-------|-------------|
-| Apache Sites | sites | Single-Page web applications for clients (static, Apache httpd) |
+| Apache Sites | sites | Static single-page websites for clients (Apache httpd, shared Dockerfile) |
+| npm Apps | sites | Dynamic self-contained apps (Node/Express + Vite SPA + own SQLite DB) built from `Dockerfile.npm`, served on port 80 |
 | Authelia | services | OIDC identity provider for admin portal and Grafana |
 | Monitoring | services | Prometheus, Grafana, Loki, Promtail, ntfy |
 | PostgreSQL | services | Persistent data store for all client data |
 | Spring Boot API | services | Java 25 backend with OAuth2 admin portal and token-based API auth |
 | Traefik | services | Reverse proxy with automatic TLS via Let's Encrypt |
-| tunde-divat | sites | Dynamic npm app (Node/Express + Vite SPA + own SQLite DB) built from `Dockerfile.npm`, served on port 80 |
 
-Most sites are built from a shared Dockerfile into their own Apache httpd container; one site (`tunde-divat`) is a self-contained Node/Express + Vite application with its own SQLite database, built from a separate npm Dockerfile. Static sites that need dynamic content proxy API calls to the backend via internal networking; the npm app talks only to itself. All static sites get output rate limiting, request timeouts, IP blacklisting, and restrictive security headers out of the box. Work-in-progress sites can be protected with a lightweight cookie-based client secret without requiring full OAuth2.
+The **sites** stack serves two kinds of site. **Static sites** (the majority) are built from a shared Dockerfile into their own Apache httpd container; those that need dynamic content proxy API calls to the backend via internal networking, and all of them get output rate limiting, request timeouts, IP blacklisting, and restrictive security headers out of the box. **npm apps** are self-contained Node/Express + Vite applications with their own SQLite database, built from a separate `Dockerfile.npm`; an npm app talks only to itself and never reaches the Spring Boot backend. Currently the only npm app is `tunde-divat`, but the build pipeline treats `npm` as a general site **type** (selected via `client_payload.type`), not a one-off. Work-in-progress sites can be protected with a lightweight cookie-based client secret without requiring full OAuth2.
 
 For the full compose structure and deployment details, see the [services](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/services-deployment.md) and [sites](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/sites-deployment.md) deployment documentation.
 
@@ -39,7 +39,7 @@ Full platform documentation lives in the [`.kiro`](https://github.com/outsidewor
 | [Networking](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/networking.md) | Overlay network, Swarm VIP DNS, hostname conventions, service communication graph |
 | [Python Utilities](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/python-utils.md) | Sidecar scripts — image cache sync, operational shell scripts |
 | [Services Deployment](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/services-deployment.md) | Docker Swarm stack for backend, PostgreSQL, monitoring, and supporting services |
-| [Sites Deployment](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/sites-deployment.md) | Docker stack for Apache-based static sites, shared Dockerfile, proxy config |
+| [Sites Deployment](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/sites-deployment.md) | Docker stack for client sites — static Apache sites (shared Dockerfile, proxy config) and dynamic npm apps (`Dockerfile.npm`) |
 | [Sites WIP](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/sites-wip.md) | Work-in-progress sites — submodule integration, client secret access control |
 | [Spring Boot](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/spring-boot.md) | Java 25 / Spring Boot 3.5 backend — package structure, client pattern, configuration, testing |
 | [Traefik](https://github.com/outsideworx/.kiro/blob/main/prompts/outsideworx/traefik.md) | Reverse proxy — TLS, routing, labels, middlewares |
