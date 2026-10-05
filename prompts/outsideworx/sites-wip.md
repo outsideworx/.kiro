@@ -37,7 +37,9 @@ The site is accessible at `outsideworx.net/clients/thegreen/`.
 
 ### Updating Submodule Content
 
-When the WIP site repo is updated, the outsideworx repo's submodule pointer must be updated manually:
+`thegreen` now auto-refreshes like the other mirrored sites. On push to `thegreen/main`, its `build.yaml` sends an `update-submodule` `repository_dispatch` to the `outsideworx` repo (it sends **only** this dispatch — no `build-sites`, since `thegreen` has no standalone image; it is served solely from the `outsideworx` container). The `outsideworx` repo's `update-submodule` job then bumps the pointer, commits, and pushes — which re-fires the `outsideworx` site build and auto-deploys the mirror. See `github-actions.md`.
+
+If you ever need to bump the pointer by hand (e.g. the dispatch path is unavailable):
 
 ```bash
 cd outsideworx
@@ -47,7 +49,7 @@ git commit -m "Update thegreen submodule"
 git push
 ```
 
-This triggers the outsideworx site rebuild via `repository_dispatch`.
+The push triggers the outsideworx site rebuild via `repository_dispatch` either way.
 
 ### Graduating to Standalone
 

@@ -76,6 +76,7 @@ sequenceDiagram
     participant SiteRepo as Site Repo
     participant API as GitHub API
     participant SitesRepo as Sites Repo
+    participant WorxRepo as outsideworx Repo
     participant GHCR as GHCR
 
     SiteRepo->>SiteRepo: Push to main
@@ -84,9 +85,21 @@ sequenceDiagram
     SitesRepo->>SitesRepo: Docker build<br/>(clones site repo via NAME arg,<br/>Dockerfile chosen by type)
     SitesRepo->>GHCR: Push image
     SitesRepo->>SitesRepo: docker service update --force sites_<name>
+
+    Note over SiteRepo,WorxRepo: static sites only (not outsideworx / tunde-divat)
+    SiteRepo->>API: repository_dispatch<br/>event_type: update-submodule<br/>client_payload: { name }
+    API->>WorxRepo: Trigger update-submodule job
+    WorxRepo->>WorxRepo: git submodule update --remote clients/<name><br/>commit + push (only if pointer moved)
+    WorxRepo->>API: push to main re-fires build-sites (name: outsideworx)
+    API->>SitesRepo: rebuild + force-update sites_outsideworx
 ```
 
-Each site repo has a single workflow (`build.yaml`) with no checkout and no build step. On push to `main`, it calls the GitHub API to send a `repository_dispatch` event to the `sites` repo with `event_type: build-sites` and `client_payload: { name: '<name>' }` — plus `type: 'npm'` for the `tunde-divat` app. There is one shared event type (`build-sites`), not a per-site event. The `sites` repo receives this, selects the Dockerfile from `client_payload.type`, and builds the image — cloning the site repo's content at Docker build time via the `NAME` build arg — then force-updates the running Swarm service. The site repo never touches Docker directly.
+Each static site repo's workflow (`build.yaml`, no checkout, no build step) sends **two** `repository_dispatch` events on push to `main`:
+
+1. `event_type: build-sites` to the `sites` repo with `client_payload: { name: '<name>' }` (plus `type: 'npm'` for `tunde-divat`) — builds the site's own standalone image and force-updates `sites_<name>`. There is one shared event type (`build-sites`), not a per-site event. The `sites` repo selects the Dockerfile from `client_payload.type`, clones the site content at Docker build time via the `NAME` build arg, then force-updates the running Swarm service.
+2. `event_type: update-submodule` to the `outsideworx` repo with `client_payload: { name: '<name>' }` — refreshes the `/clients/<name>` mirror. The `outsideworx` repo's `build.yaml` has an `update-submodule` job (gated on `repository_dispatch`) that checks out with submodules (authenticated via `DISPATCH_TOKEN`), runs `git submodule update --remote clients/<name>`, and — only if the pointer moved — commits (as `outsideworx <info@outsideworx.net>`) and pushes. That push to `outsideworx/main` re-fires the `outsideworx` site's own push-triggered `build-sites` dispatch, rebuilding its image with the fresh submodule and force-updating `sites_outsideworx`.
+
+The second dispatch is sent only by the mirrored static sites (come-in-and-find-out, duckumbrella, gaiapeeps, igli, soupart, soupkitchen). `outsideworx` itself and `tunde-divat` (npm, not mirrored) send only the `build-sites` dispatch. `thegreen` is mirror-only (no standalone image): its `build.yaml` sends **only** the `update-submodule` dispatch, so it now auto-deploys too (see `sites-wip.md`). The site repo never touches Docker directly.
 
 ## Current Sites
 
