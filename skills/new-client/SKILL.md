@@ -1,6 +1,6 @@
 ---
 name: new-client
-description: Adding a new client to the platform. Use when onboarding a new client that needs API access and database storage. May include an admin portal view.
+description: Adding a new client to the platform — Authelia user setup, application.yaml client config, API auth tokens (compose/.env wiring for services and sites), ntfy user creation, and the Spring Boot Entity/Repository/Converter/ApiController/Controller code pattern. Use when onboarding a new client that needs API access and database storage, or troubleshooting a client's auth/portal redirect loop. May include an admin portal view (delegates to admin-portal) and a database changelog (delegates to liquibase).
 ---
 
 # New Client Registration

@@ -1,6 +1,6 @@
 ---
 name: callback
-description: Contact form callback system (visitor submits contact info → email sent → persisted to DB). Use when adding callback functionality to a new client or modifying the existing callback flow.
+description: Contact form callback system (visitor submits contact info → email sent via EmailGateway/MailerSend → persisted to the CALLBACK table even if email fails). Covers CallbackController, Callback DTO, CORS origin restriction per client, and the frontend modal/jQuery POST pattern. Use when adding callback functionality to a new client or modifying the existing callback flow.
 ---
 
 # Callback System

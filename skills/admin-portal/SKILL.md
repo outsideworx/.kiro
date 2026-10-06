@@ -1,6 +1,6 @@
 ---
 name: admin-portal
-description: Admin portal conventions (Thymeleaf templates, ModelVisitor controllers, form patterns). Use when creating or modifying client admin views.
+description: Admin portal conventions — Thymeleaf templates (simple table layout vs. accordion with image uploads), ModelVisitor controller pattern, the IndexController email-domain dispatch mechanism, items[n].field form data convention, delete-checkbox/hidden-id handling, and JS patterns (addRow, submit spinner, file upload validation/preview). Use when creating or modifying a client's admin view, or debugging why a client's portal doesn't render after login.
 ---
 
 # Admin Portal

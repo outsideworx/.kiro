@@ -1,6 +1,6 @@
 ---
 name: seo
-description: SEO conventions (robots.txt, sitemap.xml, metrics.txt, meta tags). Use when creating a new site repo or modifying SEO-related files.
+description: SEO and health-check conventions for static site repos — robots.txt (Disallow-all + Allow whitelist), sitemap.xml (single extensionless loc URL), metrics.txt (Prometheus health check, "up 1"), and HTML meta tag rules (description, author, robots, viewport ordering) for content pages, splash/orientation pages, and WIP submodule sites. Does not apply to the tunde-divat npm app. Use when creating a new site repo or modifying robots.txt, sitemap.xml, metrics.txt, or page meta tags.
 ---
 
 # SEO

@@ -1,6 +1,6 @@
 ---
 name: github
-description: GitHub repository and CI/CD setup. Use when creating a new site repo, adding a site to the build pipeline, or configuring repository settings.
+description: GitHub repository and CI/CD setup — creating a new site repo, repository settings and branch protection, build/verify/deploy workflow templates, repository_dispatch wiring (build-sites, update-submodule), registering or removing a site from the build pipeline, and self-hosted runner prerequisites. Use when creating a repo, adding or removing a site from CI, or configuring GitHub Actions workflows.
 ---
 
 # GitHub

@@ -1,6 +1,6 @@
 ---
 name: new-site
-description: Scaffolding a new site repo. Use when creating the frontend repo for a new or existing client — covers file structure, page types, assets, scripts, and CI.
+description: Scaffolding a new site repo (static Apache HTML/CSS/JS or a dynamic npm app). Use when creating the frontend repo for a new or existing client, choosing an entry-point/orientation pattern (landscape splash, mobile redirect, single page), writing hotspot navigation or API fetch scripts, or wiring a site into sites/compose.yaml, Traefik labels, the GitHub Actions build matrix, Prometheus scrape targets, or the services_cache volume — covers file structure, page archetypes, assets, scripts, CI dispatch, and infrastructure wiring.
 ---
 
 # New Site

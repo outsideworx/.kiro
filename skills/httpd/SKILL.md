@@ -1,6 +1,6 @@
 ---
 name: httpd
-description: Apache httpd configuration conventions for the sites Dockerfile. Use when modifying the shared Dockerfile, adding security headers, changing proxy config, or adjusting rate limits.
+description: Apache httpd configuration conventions for the sites Dockerfile — proxy config (ProxyPass to services), security/response headers (CSP, X-Frame-Options, nosniff), RemoteIP/Traefik trust ranges, rate limiting and MPM timeouts, URL blocking (RedirectMatch 403) and convenience redirects, log format, MultiViews directory options, module enabling, and the entrypoint script (TOKEN injection, client-secret Lua auth). Use when modifying the shared Dockerfile, adding security headers, changing proxy config, or adjusting rate limits.
 ---
 
 # Apache httpd — Sites Configuration
