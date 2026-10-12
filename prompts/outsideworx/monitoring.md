@@ -16,7 +16,7 @@
 - Scrape interval: 1m (prod), 5s (test)
 - Retention: 365 days (`--storage.tsdb.retention.time=365d`)
 - Data volume: named volume `prometheus` (mounted at `/prometheus`)
-- Scrape targets: authelia:81, loki, ntfy:81, postgres-exporter, promtail, services-services:81 (path `/actuator/prometheus`), the 7 static site containers, traefik:81
+- Scrape targets: authelia:81, loki, ntfy:81, postgres-exporter, promtail, services-services:81 (path `/actuator/prometheus`), the 7 static site containers, traefik:81, wg-easy:51821 (path `/metrics/prometheus`, bearer-token auth — see the `wg-easy` prompt)
 - In test mode, services target is `host.docker.internal:8081` (app runs on host)
 - The `tunde-divat` npm app is **not** a scrape target. It exposes `/metrics` (returns the string `up 1`), but that endpoint is used only by the Docker/Traefik health check — it is not real Prometheus metrics, and `sites_tunde-divat` is deliberately absent from `prometheus.yaml`.
 
@@ -98,4 +98,4 @@ services/
 1. Add entry to `prometheus.yaml` under `scrape_configs`
 2. Add corresponding entry to `prometheus-test.yaml` (adjust host if needed)
 3. Ensure the service exposes a `/metrics` endpoint (or specify `metrics_path`)
-4. The service must be on the `outsideworx` overlay network
+4. The service must be reachable by Prometheus — either on the `outsideworx` overlay network, or on `edge` (Prometheus straddles both; see `networking.md`)

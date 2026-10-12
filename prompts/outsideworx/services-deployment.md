@@ -2,12 +2,12 @@
 
 ## Overview
 
-The services stack runs on Docker Swarm as a single-node cluster. It contains the Spring Boot app, PostgreSQL, monitoring, auth, and utility containers — all on a shared overlay network.
+The services stack runs on Docker Swarm as a single-node cluster. It contains the Spring Boot app, PostgreSQL, monitoring, auth, and utility containers — on two shared overlay networks (`outsideworx` and `edge`; see `networking.md`).
 
 ## Infrastructure
 
 - Single manager node (all constraints: `node.role == manager`)
-- Overlay network: `outsideworx` (external, attachable)
+- Overlay networks: `outsideworx` and `edge` (both external, attachable — see `networking.md` for which services join which)
 - Docker secret: `rsa_private_key` (RSA 4096-bit, used by Authelia for OIDC signing)
 - Stack name: `services`
 
@@ -20,7 +20,7 @@ The deployment script handles both initial setup and updates.
 | Flag | Action |
 |------|--------|
 | `--install` | Installs `docker-compose-v2`, `git`, `maven`, `npm`, `openjdk-25-jdk` via apt |
-| `--network` | Initializes Swarm (`docker swarm init --advertise-addr <IP>`) and creates the overlay network |
+| `--network` | Initializes Swarm (`docker swarm init --advertise-addr <IP>`) and creates both overlay networks (`edge`, `outsideworx`) |
 | `--secrets` | Generates RSA 4096 key and stores as Docker secret |
 | (no flag) | Deploys/updates the stack |
 
@@ -37,7 +37,7 @@ The deployment script handles both initial setup and updates.
 ### Prerequisites
 
 - Docker Swarm initialized (`--network` flag, requires IP address)
-- Overlay network created (`--network` flag)
+- Both overlay networks created (`--network` flag)
 - RSA secret created (`--secrets` flag)
 - `.env` file present in repo root with all required variables
 
@@ -58,10 +58,11 @@ The deployment script handles both initial setup and updates.
 | ntfy | binwiederhier/ntfy | via Traefik | See monitoring.md |
 | postgres-exporter | quay.io/prometheuscommunity/postgres-exporter | internal only | |
 | utils | python (slim) | internal only | See python-utils.md |
+| wg-easy | ghcr.io/wg-easy/wg-easy | via Traefik (admin UI) + host-mode UDP 51820 (VPN) | See the `wg-easy` prompt |
 
 ### Network
 
-All services join the `outsideworx` external overlay network. No service-specific networks.
+Most services join the `outsideworx` external overlay network. `traefik` and `prometheus` join both `outsideworx` and `edge`. No other service-specific networks. See `networking.md` for the full per-service breakdown and rationale.
 
 ### Secrets
 
@@ -69,9 +70,11 @@ All services join the `outsideworx` external overlay network. No service-specifi
 secrets:
   rsa_private_key:
     external: true
+  wg_metrics_token:
+    external: true
 ```
 
-Used only by the `authelia` service.
+`rsa_private_key` is used only by `authelia`. `wg_metrics_token` is used only by `prometheus` (bearer auth for scraping wg-easy — see the `wg-easy` prompt).
 
 ### Configs
 
@@ -107,9 +110,10 @@ volumes:
   postgres:
   prometheus:
   promtail:
+  wireguard:
 ```
 
-The `cache` named volume holds the images the `utils` container syncs from PostgreSQL. It is exposed to the sites stack as the external volume `services_cache` (Swarm prefixes the stack name), which `come-in-and-find-out` and `soupart` mount read-only. This replaced the former `/home/outsideworx/utils` host bind mount — `deploy.sh` no longer creates that directory.
+The `cache` named volume holds the images the `utils` container syncs from PostgreSQL. It is exposed to the sites stack as the external volume `services_cache` (Swarm prefixes the stack name), which `come-in-and-find-out` and `soupart` mount read-only. This replaced the former `/home/outsideworx/utils` host bind mount — `deploy.sh` no longer creates that directory. The `wireguard` volume holds wg-easy's config/peers (see the `wg-easy` prompt).
 
 Host bind mounts:
 - `/var/run/docker.sock` → traefik (service discovery) and promtail (container log discovery)
@@ -140,13 +144,14 @@ All variables required for the services stack:
 | `SPRING_DATASOURCE_PASSWORD` | services, postgres, postgres-exporter | PostgreSQL password |
 | `SPRING_DATASOURCE_USERNAME` | services, postgres, postgres-exporter | PostgreSQL username (also DB name) |
 | `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_CLIENT_SECRET` | services | OIDC client secret for Spring Security |
+| `WG_OAUTH_OIDC_CLIENT_SECRET` | wg-easy | Authelia OIDC client secret for wg-easy (see the `wg-easy` prompt) |
 
 ## Prod vs Test
 
 | Aspect | Prod (compose.yaml + Swarm) | Test (compose-test.yaml + Compose) |
 |--------|----------------------------|-------------------------------------|
 | Orchestrator | Docker Swarm (`docker stack deploy`) | Docker Compose (`docker compose up`) |
-| Network | External overlay `outsideworx` | Default compose network |
+| Network | External overlays `outsideworx` + `edge` | Default compose network |
 | Secrets | Docker secrets (external) | Not used (inline in config) |
 | Placement | `constraints: node.role == manager` | Not applicable |
 | Deploy mode | Swarm services with replicas | Plain containers |

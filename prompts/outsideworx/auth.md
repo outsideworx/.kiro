@@ -41,6 +41,7 @@ flowchart LR
 |-----------|-------------|----------|
 | `grafana` | `https://grafana.outsideworx.net/login/generic_oauth` | Grafana |
 | `services` | `https://services.outsideworx.net/login/oauth2/code/authelia` | Spring Boot app |
+| `wg-easy` | `https://vpn.outsideworx.net/api/auth/oidc/callback`, `https://vpn.outsideworx.net/api/auth/oidc/link` | wg-easy (see `wg-easy` prompt) |
 
 ### Users
 

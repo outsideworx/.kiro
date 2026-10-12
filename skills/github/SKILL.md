@@ -143,6 +143,26 @@ Replace `<site-name>` in `client_payload.name`. All site repos use the same `eve
             client_payload: { name: '<site-name>', type: 'npm' }
 ```
 
+#### Second Dispatch: Mirrored Static Sites Only
+
+If the new site is mirrored under `outsideworx.net/clients/<name>` as a git submodule (i.e. it is one of the mirrored static sites — see the `sites-deployment.md` prompt's "Fallback / Mirror URLs" section), the same workflow must also send an `update-submodule` dispatch to the `outsideworx` repo so the submodule pointer stays in sync with the site's own deploys:
+
+```yaml
+            await github.rest.repos.createDispatchEvent({
+              owner: 'outsideworx',
+              repo: 'outsideworx',
+              event_type: 'update-submodule',
+              client_payload: { name: '<site-name>' }
+            })
+```
+
+Add this as a second step (or a second `createDispatchEvent` call within the same step) in the `dispatch` job, after the `build-sites` dispatch. This is **not** needed for:
+- `outsideworx` itself (it has no submodule of itself)
+- `tunde-divat` or any npm app (npm apps are not mirrored — they are self-contained dynamic apps, not static content)
+- `thegreen` (WIP submodule-only site) — it sends **only** the `update-submodule` dispatch, no `build-sites` (it has no standalone image)
+
+The `outsideworx` repo's own `build.yaml` has a matching `update-submodule` job (gated on `repository_dispatch`) that bumps the submodule pointer, commits, and pushes — which re-triggers the `outsideworx` site's own build. See the `github-actions` prompt's "Site Repo Dispatch" sequence diagram for the full flow.
+
 ### 3. Register in the Sites Build Pipeline
 
 Delegate to the `new-site` skill — it owns compose, build matrix, and Prometheus wiring (see its "Infrastructure Wiring" section).

@@ -175,7 +175,7 @@ update_config:
 ### Prerequisites
 
 - Swarm already initialized (by services deploy)
-- `outsideworx` overlay network exists
+- `outsideworx` and `edge` overlay networks exist
 - `.env` file present
 
 ## .env File (sites)
@@ -210,7 +210,7 @@ Only static sites that call the API need a `TOKEN`. Static sites without API cal
 | MPM workers | 128 max | 4 max |
 | Redirects | `https://services.outsideworx.net/...` | `http://localhost:8080/...` |
 | Compose | `compose.yaml` (pulls from GHCR) | `compose-test.yaml` (builds locally) |
-| Network | External overlay `outsideworx` | External `services_default` |
+| Network | External overlay `outsideworx` or `edge` (per-site, see `networking.md`) | External `services_default` |
 | Domains | Real domains | `*.localhost` |
 | Health check interval | 1m | 5s |
 
@@ -226,7 +226,7 @@ Only static sites that call the API need a `TOKEN`. Static sites without API cal
 | Seed vars | From `.env` (`TUNDE_DIVAT_SEED_*`) | Hardcoded test values |
 | `SESSION_SECRET` | From `.env` (`TUNDE_DIVAT_SESSION_SECRET`) | Hardcoded 32+ char test string |
 | Volume | Named volume `tunde-divat` → `/data` | Ephemeral (compose-managed) |
-| Network | External overlay `outsideworx` | External `services_default` |
+| Network | None declared in `compose.yaml` (see `networking.md`) | External `services_default` |
 | Domain | `tundedivat.com` (no `www.` redirect) | `tunde-divat.localhost` |
 | Health check | `/metrics` on port 80, interval 1m | `/metrics` on port 80, interval 5s |
 | Metrics endpoint | `/metrics` returns `up 1` | `/metrics` returns `up 1` |
@@ -243,16 +243,18 @@ Two distinct deployment paths exist:
 
 ## Sites List
 
-| Name | Domain | Type | Has API Token | Cache Volume |
-|------|--------|------|---------------|--------------|
-| come-in-and-find-out | come-in-and-find-out.ch | static | Yes | `services_cache` → `/htdocs/cache` (ro) |
-| duckumbrella | duckumbrella.net | static | No | — |
-| gaiapeeps | gaiapeeps.com | static | Yes | — |
-| igli | igli.info | static | No | — |
-| outsideworx | outsideworx.net | static | Yes | — |
-| soupart | soupart.net | static | Yes | `services_cache` → `/htdocs/cache` (ro) |
-| soupkitchen | soupkitchen.info | static | No | — |
-| tunde-divat | tundedivat.com | npm | No (self-contained) | Named volume `tunde-divat` → `/data` (SQLite + uploads) |
+| Name | Domain | Type | Has API Token | Network | Cache Volume |
+|------|--------|------|---------------|---------|--------------|
+| come-in-and-find-out | come-in-and-find-out.ch | static | Yes | `outsideworx` | `services_cache` → `/htdocs/cache` (ro) |
+| duckumbrella | duckumbrella.net | static | No | `edge` | — |
+| gaiapeeps | gaiapeeps.com | static | Yes | `outsideworx` | — |
+| igli | igli.info | static | No | `edge` | — |
+| outsideworx | outsideworx.net | static | Yes | `outsideworx` | — |
+| soupart | soupart.net | static | Yes | `outsideworx` | `services_cache` → `/htdocs/cache` (ro) |
+| soupkitchen | soupkitchen.info | static | No | `edge` | — |
+| tunde-divat | tundedivat.com | npm | No (self-contained) | None declared in compose (see `networking.md`) | Named volume `tunde-divat` → `/data` (SQLite + uploads) |
+
+The three sites with no API token and no `services_cache` mount (`duckumbrella`, `igli`, `soupkitchen`) sit on the `edge` overlay instead of `outsideworx` — they never call the Spring Boot backend, so they have no reason to join `outsideworx`; Traefik still reaches them because it joins both networks. See `networking.md` for the full rationale and per-service breakdown. `tunde-divat` has no explicit `networks:` entry at all in `sites/compose.yaml` (unlike every other service) — likely an oversight worth confirming.
 
 The cache volume is a Docker named volume (`services_cache`, external — created by the services stack's `utils` container as `cache`). It is no longer a host bind mount; nothing under `/home/outsideworx/utils` is involved anymore. Static sites that serve cached images (`come-in-and-find-out`, `soupart`) mount the whole volume read-only at `/htdocs/cache` (not a per-client subdirectory). In test, both sites share the same named volume mounted at `/htdocs/cache`. The `tunde-divat` volume is a separate Docker named volume holding the app's own SQLite database and uploaded images — not a cache of the services DB.
 

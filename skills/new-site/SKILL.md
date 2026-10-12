@@ -469,6 +469,24 @@ Add the corresponding entry to `sites/compose-test.yaml` (use `*.localhost` doma
 
 Sites without API access omit the `TOKEN` environment variable.
 
+#### Network: `outsideworx` vs `edge`
+
+A static site joins `outsideworx` only if it needs to reach the Spring Boot backend — i.e. it has an API token (`TOKEN` env var) or mounts `services_cache`. A site with neither (no `TOKEN`, no cache mount) joins `edge` instead — see `networking.md` for the full rationale. Traefik reaches sites on either network because it joins both.
+
+```yaml
+# Site with API access or cache mount
+<site-name>:
+  networks:
+    - outsideworx
+
+# Site with no backend dependency
+<site-name>:
+  networks:
+    - edge
+```
+
+Test compose (`compose-test.yaml`) does not distinguish — all sites join the single external `services_default` network there.
+
 #### npm App Variant
 
 A dynamic npm app uses a different service shape — it is not an Apache static site (the current example is `tunde-divat`):
@@ -486,8 +504,6 @@ A dynamic npm app uses a different service shape — it is not an Apache static 
     SESSION_SECRET: $<SITE_NAME>_SESSION_SECRET
     UPLOAD_DIR: /data/uploads
   image: ghcr.io/outsideworx/<site-name>:latest
-  networks:
-    - outsideworx
   volumes:
     - <site-name>:/data
   deploy:
@@ -504,6 +520,8 @@ A dynamic npm app uses a different service shape — it is not an Apache static 
 The named volume must also be declared under the top-level `volumes:` key (a bare `<site-name>:` entry) alongside `services_cache`.
 
 Differences from a static site: no `NAME`/`TOKEN` env vars, no `www-redirect` middleware (single host rule), a named volume for the SQLite DB + uploads (declared under top-level `volumes:`), and a `/metrics` health check endpoint. There is **no `ports:` mapping** — Traefik routes to the container on port 80, and the Express server listens on port 80 (`API_PORT=80` is baked into `Dockerfile.npm`, not set in compose). Set `CORS_ORIGIN` to the exact public origin the SPA is served from (the real domain, e.g. `https://<domain>`) — a mismatch blocks the app's own API calls. For the test-compose counterpart, use `Dockerfile.npm.test`, hardcoded seed/session values, `AI_PROVIDER=openai`, `OPENAI_API_KEY=""`, a `*.localhost` `CORS_ORIGIN`, `tls=true`, and healthcheck interval `5s`.
+
+**Network**: the existing `tunde-divat` entry has no `networks:` key at all in `sites/compose.yaml` prod — it is not declared on `outsideworx` or `edge`. This diverges from every other service in both stacks (which all declare one explicit network) and has not been confirmed as intentional. Since the npm app is self-contained (no backend calls) it most likely belongs on `edge` if an explicit network is added — verify with whoever owns the compose file before copying this gap into a new npm app.
 
 ### Build Pipeline
 

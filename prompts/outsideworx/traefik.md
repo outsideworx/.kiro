@@ -6,7 +6,7 @@ Traefik v3 is the single entry point for all HTTP/HTTPS traffic. It handles TLS 
 
 - Image: `traefik`
 - Ports: 80 (HTTP), 443 (HTTPS), 81 (Traefik dashboard/metrics)
-- Network: `outsideworx` overlay (shared by all services)
+- Network: `outsideworx` and `edge` overlays (Traefik joins both — see `networking.md`)
 
 ## Entrypoints
 
@@ -91,6 +91,7 @@ Currently defined:
 | grafana | `grafana.outsideworx.net` | 80 |
 | ntfy | `ntfy.outsideworx.net` | 80 |
 | services | `services.outsideworx.net` | 80 |
+| wg-easy | `vpn.outsideworx.net` | 51821 (admin UI only — see the `wg-easy` prompt) |
 
 ### Sites Stack
 
@@ -127,7 +128,7 @@ Every static (non-npm) site is additionally reachable as a fallback mirror at `o
 ## Adding a New Routed Service
 
 1. Add Traefik labels to the service in `compose.yaml` (prod) and `compose-test.yaml` (test)
-2. Ensure the service is on the `outsideworx` overlay network
+2. Ensure the service is on `outsideworx` or `edge` (whichever it needs — Traefik reaches both; see `networking.md`)
 3. Set `traefik.enable=true` and configure router + service labels
 4. For TLS: use `certresolver=letsencrypt` (prod) or `tls=true` (test)
 5. If the domain needs `www.` redirect, attach the `www-redirect` middleware

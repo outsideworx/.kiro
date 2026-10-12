@@ -1,21 +1,66 @@
 # Networking
 
-## Overlay Network
+## Overlay Networks
 
-A single Docker overlay network (`outsideworx`) connects all containers across both stacks. It is external and attachable — created once during initial Swarm setup (`deploy.sh --network`).
+Two Docker overlay networks connect containers across both stacks. Both are external and attachable — created once during initial Swarm setup (`deploy.sh --network`):
 
 ```yaml
 networks:
+  edge:
+    external: true
   outsideworx:
     external: true
 ```
 
-Both `services` and `sites` stacks attach to this network. There are no per-service networks.
+```bash
+docker network create -d overlay --attachable edge
+docker network create -d overlay --attachable outsideworx
+```
 
-Because the network is shared, any container can reach any other container regardless of which stack it belongs to. This enables:
-- Traefik (in `services` stack) routing traffic to site containers (in `sites` stack)
-- Site containers (in `sites` stack) proxying API requests to the services app (in `services` stack)
-- Prometheus (in `services` stack) scraping metrics from the static site containers (in `sites` stack; npm apps expose no metrics)
+- **`outsideworx`** — the original shared network. Carries all backend traffic: API proxying (sites → services), JDBC, OIDC, Prometheus scraping of backend services, log shipping. Most services join this network.
+- **`edge`** — a second overlay network introduced alongside the `wg-easy` VPN service. It exists to give Traefik, Prometheus, and `wg-easy` a path to each other that doesn't require every lightweight static site to also sit on `outsideworx`. A handful of static sites with no backend dependency (`duckumbrella`, `igli`, `soupkitchen`) were moved onto `edge` instead of `outsideworx`, since Traefik (which routes to them) is reachable there too.
+
+There are no other per-service networks.
+
+### Which Services Are on Which Network
+
+| Service | `outsideworx` | `edge` |
+|---------|:---:|:---:|
+| authelia | Yes | — |
+| grafana | Yes | — |
+| loki | Yes | — |
+| ntfy | Yes | — |
+| postgres | Yes | — |
+| postgres-exporter | Yes | — |
+| prometheus | Yes | Yes |
+| promtail | Yes | — |
+| services (Spring Boot) | Yes | — |
+| traefik | Yes | Yes |
+| utils | Yes | — |
+| wg-easy | — | Yes |
+| come-in-and-find-out | Yes | — |
+| duckumbrella | — | Yes |
+| gaiapeeps | Yes | — |
+| igli | — | Yes |
+| outsideworx (site) | Yes | — |
+| soupart | Yes | — |
+| soupkitchen | — | Yes |
+| tunde-divat | — | — |
+
+Each service joins exactly one of the two networks (`traefik` and `prometheus` are the only services on both). `tunde-divat` currently has no explicit `networks:` entry in `sites/compose.yaml` — this looks like an oversight relative to every other site service (which all declare one of the two networks); verify intent before relying on it reaching Traefik implicitly.
+
+### Why `duckumbrella` / `igli` / `soupkitchen` Moved to `edge`
+
+These are the three static sites with **no** API token and **no** `services_cache` mount (see the sites table in `sites-deployment.md`) — they never need to reach `services_services`, so they have no reason to sit on `outsideworx`. Traefik still routes to them because Traefik itself joins both `edge` and `outsideworx`. The other four static sites (`come-in-and-find-out`, `gaiapeeps`, `outsideworx`, `soupart`) stay on `outsideworx` because they call the API (directly or, for `outsideworx`, as the mirror proxy for ciafo/peeps/soup) or mount `services_cache`.
+
+### Why Prometheus and Traefik Are on `edge`
+
+`wg-easy` is reachable **only** on `edge` (it has no backend dependency and is not part of the API/DB graph). For Traefik to route `vpn.outsideworx.net` to it, and for Prometheus to scrape its `/metrics/prometheus` endpoint, both need a path onto `edge` alongside `wg-easy`. Hence `traefik` and `prometheus` are the two services straddling both networks.
+
+Because the networks are shared within each one, any container can reach any other container on the same network regardless of which stack it belongs to. This enables:
+- Traefik (in `services` stack) routing traffic to site containers (in `sites` stack), across whichever of the two networks each site is on
+- Site containers on `outsideworx` (in `sites` stack) proxying API requests to the services app (in `services` stack)
+- Prometheus (in `services` stack) scraping metrics from the static site containers (in `sites` stack, on whichever network they're on; npm apps expose no metrics) and from `wg-easy` on `edge`
 
 ## Swarm VIP DNS (Prod)
 
@@ -27,7 +72,7 @@ Docker Swarm assigns each service a Virtual IP (VIP) and registers it in the ove
 
 Examples: `services_postgres`, `services_authelia`, `sites_soupart`
 
-This name resolves globally across all nodes in the Swarm — any container on the `outsideworx` network can reach any other service by its VIP DNS name regardless of which node the target runs on.
+This name resolves globally across all nodes in the Swarm — any container on a given overlay network (`outsideworx` or `edge`) can reach any other service on that same network by its VIP DNS name, regardless of which node the target runs on. The two networks are independent namespaces — a service on `edge` only resolves other `edge` services, not `outsideworx` ones, unless it's one of the two services (`traefik`, `prometheus`) that joins both.
 
 ## Network Aliases (Java/Spring Boot RFC Compliance)
 
@@ -218,4 +263,4 @@ graph TB
 2. **Never use `services_` prefix in test configs** — always short container names
 3. **Only add network aliases when Java/Spring Boot is involved** — outbound (`authelia`, `postgres`) or inbound (`services` itself)
 4. **Aliases are task-scoped** — they only resolve on the node where the container's task runs, not across the Swarm. This means `authelia`, `postgres`, and `services` must all run on the same node — the Spring Boot app uses aliases to reach them, and those aliases won't resolve if the targets are scheduled on a different machine.
-5. **All services share one flat network** — no network segmentation, no service-specific networks
+5. **Two flat overlay networks, no per-service networks** — `outsideworx` for backend-connected services, `edge` for Traefik/Prometheus/wg-easy and the three backend-free static sites. A service picks exactly one network unless it needs to straddle both (currently only `traefik` and `prometheus`).

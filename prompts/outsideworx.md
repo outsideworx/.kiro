@@ -8,7 +8,7 @@ AI-enabled from code to canvas — but never generic. We use AI to move faster a
 
 ## Architecture
 
-A self-hosted platform running multiple client websites and a shared backend on a single Docker Swarm node. Two stacks — **services** (backend + infrastructure) and **sites** (websites — static Apache sites and dynamic npm apps) — share a single overlay network.
+A self-hosted platform running multiple client websites and a shared backend on a single Docker Swarm node. Two stacks — **services** (backend + infrastructure) and **sites** (websites — static Apache sites and dynamic npm apps) — share two overlay networks (one for backend-connected services, one for Traefik/Prometheus/edge-only sites).
 
 | Component | Stack | Description |
 |-----------|-------|-------------|
