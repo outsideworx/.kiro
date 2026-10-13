@@ -141,7 +141,7 @@ So the Express server is started in the background and Apache httpd runs in the 
 - **No `/api/` proxy to services**: the app is self-contained; it does not call the Spring Boot backend
 - **Persistence**: a SQLite DB file and uploads directory live on a named volume mounted at `/data` (`DATABASE_URL=file:/data/tunde-divat.db`, `UPLOAD_DIR=/data/uploads`)
 - **Health check**: `wget --spider http://localhost/metrics` (compose) and Traefik healthcheck path `/metrics`, both on port 80
-- **`/metrics` endpoint**: an Express route that returns the string `up 1`. It is used **only** by the Docker/Traefik health check — tunde-divat is **not** a Prometheus scrape target (see `monitoring.md`)
+- **`/metrics` endpoint**: an Express route (`metricsRoutes.ts`, mounted at `/metrics`, route `/`) returning `up 1` with `Content-Type: text/plain; version=0.0.4`. Used by the Docker/Traefik health checks and scraped by Prometheus in the `sites` job (see `monitoring.md`). The explicit content type is required — Prometheus 3.x rejects `text/html`, Express's default for string bodies
 
 See the `tunde-divat` repo's `AGENTS.md` for the app's internal architecture (Express + React + Prisma, AI image generation, auth).
 
@@ -160,7 +160,7 @@ Simple deployment — no Swarm init needed (uses the network created by services
 
 ### Update Strategy
 
-Every service in `compose.yaml` shares a YAML-anchored `update_config` (`x-update-config`):
+Every static site in `compose.yaml` shares a YAML-anchored `update_config` (`x-update-config`):
 
 ```yaml
 update_config:
@@ -170,6 +170,8 @@ update_config:
 
 - **`order: start-first`** — Swarm starts the new task and waits for it to become healthy before stopping the old one, giving zero-downtime rolling updates (the health checks gate the cutover).
 - **`failure_action: rollback`** — if the new task fails to converge, Swarm automatically rolls back to the previous task instead of leaving the service down.
+
+`tunde-divat` deliberately does **not** merge the anchor (`deploy: <<: *placement` only) and runs on the Swarm defaults `order: stop-first`, `failure_action: pause`. Its entrypoint writes to the SQLite volume on every boot (`prisma migrate deploy`, seed), so a start-first overlap would have two tasks writing the same file. Trade-off: ~30–60 s downtime per deploy, and a failed update pauses instead of rolling back.
 
 
 ### Prerequisites
@@ -226,7 +228,7 @@ Only static sites that call the API need a `TOKEN`. Static sites without API cal
 | Seed vars | From `.env` (`TUNDE_DIVAT_SEED_*`) | Hardcoded test values |
 | `SESSION_SECRET` | From `.env` (`TUNDE_DIVAT_SESSION_SECRET`) | Hardcoded 32+ char test string |
 | Volume | Named volume `tunde-divat` → `/data` | Ephemeral (compose-managed) |
-| Network | None declared in `compose.yaml` (see `networking.md`) | External `services_default` |
+| Network | `edge` (see `networking.md`) | External `services_default` |
 | Domain | `tundedivat.com` (no `www.` redirect) | `tunde-divat.localhost` |
 | Health check | `/metrics` on port 80, interval 1m | `/metrics` on port 80, interval 5s |
 | Metrics endpoint | `/metrics` returns `up 1` | `/metrics` returns `up 1` |
@@ -252,9 +254,9 @@ Two distinct deployment paths exist:
 | outsideworx | outsideworx.net | static | Yes | `outsideworx` | — |
 | soupart | soupart.net | static | Yes | `outsideworx` | `services_cache` → `/htdocs/cache` (ro) |
 | soupkitchen | soupkitchen.info | static | No | `edge` | — |
-| tunde-divat | tundedivat.com | npm | No (self-contained) | None declared in compose (see `networking.md`) | Named volume `tunde-divat` → `/data` (SQLite + uploads) |
+| tunde-divat | tundedivat.com | npm | No (self-contained) | `edge` | Named volume `tunde-divat` → `/data` (SQLite + uploads) |
 
-The three sites with no API token and no `services_cache` mount (`duckumbrella`, `igli`, `soupkitchen`) sit on the `edge` overlay instead of `outsideworx` — they never call the Spring Boot backend, so they have no reason to join `outsideworx`; Traefik still reaches them because it joins both networks. See `networking.md` for the full rationale and per-service breakdown. `tunde-divat` has no explicit `networks:` entry at all in `sites/compose.yaml` (unlike every other service) — likely an oversight worth confirming.
+The three sites with no API token and no `services_cache` mount (`duckumbrella`, `igli`, `soupkitchen`) sit on the `edge` overlay instead of `outsideworx` — they never call the Spring Boot backend, so they have no reason to join `outsideworx`; Traefik still reaches them because it joins both networks. See `networking.md` for the full rationale and per-service breakdown. `tunde-divat` is on `edge` for the same reason (self-contained, no backend calls).
 
 The cache volume is a Docker named volume (`services_cache`, external — created by the services stack's `utils` container as `cache`). It is no longer a host bind mount; nothing under `/home/outsideworx/utils` is involved anymore. Static sites that serve cached images (`come-in-and-find-out`, `soupart`) mount the whole volume read-only at `/htdocs/cache` (not a per-client subdirectory). In test, both sites share the same named volume mounted at `/htdocs/cache`. The `tunde-divat` volume is a separate Docker named volume holding the app's own SQLite database and uploaded images — not a cache of the services DB.
 

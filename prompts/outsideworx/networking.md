@@ -45,9 +45,9 @@ There are no other per-service networks.
 | outsideworx (site) | Yes | — |
 | soupart | Yes | — |
 | soupkitchen | — | Yes |
-| tunde-divat | — | — |
+| tunde-divat | — | Yes |
 
-Each service joins exactly one of the two networks (`traefik` and `prometheus` are the only services on both). `tunde-divat` currently has no explicit `networks:` entry in `sites/compose.yaml` — this looks like an oversight relative to every other site service (which all declare one of the two networks); verify intent before relying on it reaching Traefik implicitly.
+Each service joins exactly one of the two networks (`traefik` and `prometheus` are the only services on both). `tunde-divat` joins `edge`: it is self-contained (no backend calls), so it follows the same rule as the backend-free static sites. A service with no `networks:` entry only joins the implicit `sites_default` overlay, which Traefik is not on — tunde-divat was briefly in that state (2026-10-11 → 10-13) and served `503 no available server`.
 
 ### Why `duckumbrella` / `igli` / `soupkitchen` Moved to `edge`
 
@@ -60,7 +60,7 @@ These are the three static sites with **no** API token and **no** `services_cach
 Because the networks are shared within each one, any container can reach any other container on the same network regardless of which stack it belongs to. This enables:
 - Traefik (in `services` stack) routing traffic to site containers (in `sites` stack), across whichever of the two networks each site is on
 - Site containers on `outsideworx` (in `sites` stack) proxying API requests to the services app (in `services` stack)
-- Prometheus (in `services` stack) scraping metrics from the static site containers (in `sites` stack, on whichever network they're on; npm apps expose no metrics) and from `wg-easy` on `edge`
+- Prometheus (in `services` stack) scraping metrics from the site containers (in `sites` stack, on whichever network they're on) and from `wg-easy` on `edge`
 
 ## Swarm VIP DNS (Prod)
 
@@ -199,7 +199,7 @@ graph TB
 - **Traefik** is the single ingress point. It terminates TLS and routes to all labeled backend services based on the `Host` header: 4 in the services stack (authelia, grafana, ntfy, services) and all sites in the sites stack (each on its own domain). npm apps are also routed here, to port `80` (their Express server).
 - **Sites → services** is an internal connection (Apache `ProxyPass`), not routed through Traefik. The 4 sites provisioned with API tokens (come-in-and-find-out, gaiapeeps, soupart, outsideworx) make these calls. `outsideworx` uses its token when serving the `/clients/<name>` mirror instances of come-in-and-find-out, gaiapeeps, and soupart — their frontend JS calls `/api/`, which the `outsideworx` Apache proxies with `X-Caller-Id: outsideworx`. npm apps make **no** such call — they are self-contained (own Express API + SQLite), never reaching the Spring Boot backend or PostgreSQL.
 - **Grafana → authelia** is also internal (OIDC token exchange), not through Traefik.
-- **Prometheus** scrapes every service that exposes metrics (prod): services_authelia:81, services_loki:80, services_ntfy:81, services_postgres-exporter:80, services_promtail:80, services-services:81 (alias), services_traefik:81, and the 7 static sites on :80. In test, the 3 statically-scraped sites are targeted (see `monitoring.md`). npm apps are **not** scraped — their `/metrics` (returns `up 1`) is only a health-check endpoint.
+- **Prometheus** scrapes every service that exposes metrics (prod): services_authelia:81, services_loki:80, services_ntfy:81, services_postgres-exporter:80, services_promtail:80, services-services:81 (alias), services_traefik:81, and all 8 sites on :80 (7 static + `tunde-divat`). In test, come-in-and-find-out, gaiapeeps, soupart and tunde-divat are targeted (see `monitoring.md`). The npm app's `/metrics` returns the same `up 1` health line as the static sites, served as `text/plain`.
 - **Promtail** runs in global mode (one instance per Swarm node) and pushes logs from all containers to Loki.
 
 ## Detailed Communication Paths
@@ -218,7 +218,7 @@ graph TB
 | prometheus | services_promtail | HTTP :80 | Metrics scrape |
 | prometheus | services-services (alias) | HTTP :81 | Metrics scrape (actuator) |
 | prometheus | services_traefik | HTTP :81 | Metrics scrape |
-| prometheus | sites_* | HTTP :80 | Metrics scrape (7 static sites; not tunde-divat) |
+| prometheus | sites_* | HTTP :80 | Metrics scrape (all 8 sites, incl. tunde-divat) |
 | promtail | services_loki | HTTP :80 | Log push (`/loki/api/v1/push`) |
 | postgres-exporter | services_postgres | PostgreSQL :5432 | DB metrics |
 | utils (cache.py) | services_postgres | PostgreSQL :5432 | Image sync |
@@ -240,7 +240,7 @@ graph TB
 | prometheus | postgres-exporter | HTTP :80 | Metrics scrape |
 | prometheus | promtail | HTTP :80 | Metrics scrape |
 | prometheus | host.docker.internal | HTTP :8081 | Metrics scrape (services on host) |
-| prometheus | sites (short names) | HTTP :80 | Metrics scrape (come-in-and-find-out, gaiapeeps, soupart) |
+| prometheus | sites (short names) | HTTP :80 | Metrics scrape (come-in-and-find-out, gaiapeeps, soupart, tunde-divat) |
 | promtail | loki | HTTP :80 | Log push |
 | postgres-exporter | postgres | PostgreSQL :5432 | DB metrics |
 | utils (cache.py) | postgres | PostgreSQL :5432 | Image sync |

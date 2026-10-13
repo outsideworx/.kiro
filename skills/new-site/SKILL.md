@@ -454,7 +454,7 @@ Add a service entry to `sites/compose.yaml`:
     labels:
       - traefik.enable=true
       - traefik.http.routers.<site-name>.entrypoints=websecure
-      - traefik.http.routers.<site-name>.middlewares=www-redirect
+      - traefik.http.routers.<site-name>.middlewares=compress,www-redirect
       - traefik.http.routers.<site-name>.rule=Host(`<domain>`) || Host(`www.<domain>`)
       - traefik.http.routers.<site-name>.tls.certresolver=letsencrypt
       - traefik.http.services.<site-name>.loadbalancer.healthcheck.interval=1m
@@ -504,12 +504,15 @@ A dynamic npm app uses a different service shape — it is not an Apache static 
     SESSION_SECRET: $<SITE_NAME>_SESSION_SECRET
     UPLOAD_DIR: /data/uploads
   image: ghcr.io/outsideworx/<site-name>:latest
+  networks:
+    edge:
   volumes:
     - <site-name>:/data
   deploy:
     labels:
       - traefik.enable=true
       - traefik.http.routers.<site-name>.entrypoints=websecure
+      - traefik.http.routers.<site-name>.middlewares=compress
       - traefik.http.routers.<site-name>.rule=Host(`<domain>`)
       - traefik.http.routers.<site-name>.tls.certresolver=letsencrypt
       - traefik.http.services.<site-name>.loadbalancer.healthcheck.interval=1m
@@ -519,9 +522,11 @@ A dynamic npm app uses a different service shape — it is not an Apache static 
 
 The named volume must also be declared under the top-level `volumes:` key (a bare `<site-name>:` entry) alongside `services_cache`.
 
-Differences from a static site: no `NAME`/`TOKEN` env vars, no `www-redirect` middleware (single host rule), a named volume for the SQLite DB + uploads (declared under top-level `volumes:`), and a `/metrics` health check endpoint. There is **no `ports:` mapping** — Traefik routes to the container on port 80, and the Express server listens on port 80 (`API_PORT=80` is baked into `Dockerfile.npm`, not set in compose). Set `CORS_ORIGIN` to the exact public origin the SPA is served from (the real domain, e.g. `https://<domain>`) — a mismatch blocks the app's own API calls. For the test-compose counterpart, use `Dockerfile.npm.test`, hardcoded seed/session values, `AI_PROVIDER=openai`, `OPENAI_API_KEY=""`, a `*.localhost` `CORS_ORIGIN`, `tls=true`, and healthcheck interval `5s`.
+Differences from a static site: no `NAME`/`TOKEN` env vars, no `www-redirect` middleware (single host rule; only `compress`), a named volume for the SQLite DB + uploads (declared under top-level `volumes:`), and a `/metrics` health check endpoint. There is **no `ports:` mapping** — Traefik routes to the container on port 80, and the Express server listens on port 80 (`API_PORT=80` is baked into `Dockerfile.npm`, not set in compose). Set `CORS_ORIGIN` to the exact public origin the SPA is served from (the real domain, e.g. `https://<domain>`) — a mismatch blocks the app's own API calls. For the test-compose counterpart, use `Dockerfile.npm.test`, hardcoded seed/session values, `AI_PROVIDER=openai`, `OPENAI_API_KEY=""`, a `*.localhost` `CORS_ORIGIN`, `tls=true`, and healthcheck interval `5s`.
 
-**Network**: the existing `tunde-divat` entry has no `networks:` key at all in `sites/compose.yaml` prod — it is not declared on `outsideworx` or `edge`. This diverges from every other service in both stacks (which all declare one explicit network) and has not been confirmed as intentional. Since the npm app is self-contained (no backend calls) it most likely belongs on `edge` if an explicit network is added — verify with whoever owns the compose file before copying this gap into a new npm app.
+**Network**: an npm app joins `edge` (self-contained, no backend calls). The network is mandatory — without a `networks:` key the service only joins the implicit `sites_default` overlay, Traefik cannot reach it, and the domain serves `503 no available server`.
+
+**Update order**: an npm app with a SQLite volume does **not** merge `*update_config`. It uses the Swarm defaults (`order: stop-first`, `failure_action: pause`), so two tasks never run migrations/seed against the same database file during a rollout (`deploy: <<: *placement` only).
 
 ### Build Pipeline
 
@@ -547,7 +552,7 @@ For generic scrape target rules, see the `monitoring` prompt. Site-specific nami
 - `prometheus.yaml` (prod): add `"sites_<site-name>"` to targets
 - `prometheus-test.yaml` (test): add `"<site-name>"` to targets
 
-npm apps that do not expose real Prometheus metrics are **not** added to the scrape targets. They serve a `/metrics` Express route returning the string `up 1`, which is used only by the Traefik/Docker health check — not by Prometheus.
+npm apps are added to the `sites` job like static sites. Their `/metrics` route must return `up 1` with `Content-Type: text/plain; version=0.0.4` (set it explicitly — Express defaults string bodies to `text/html`, which Prometheus 3.x rejects). The same endpoint serves the Traefik/Docker health check.
 
 ### Cache Volume (image-serving clients only)
 

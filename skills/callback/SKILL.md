@@ -74,6 +74,7 @@ final class CallbackController {
 
 Key behaviors:
 - Email is sent first; if it fails, an `IllegalStateException` is thrown
+- `address` and `product` are HTML-escaped (`HtmlUtils.htmlEscape`, null → empty) before they are inserted into the email body, and the `href` is quoted; the raw values are what gets persisted
 - The DB save happens in a `finally` block — the callback is persisted regardless of email success/failure
 - CORS is restricted to the client's origin (`app.clients.ciafo.origin`)
 

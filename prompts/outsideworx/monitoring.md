@@ -16,9 +16,9 @@
 - Scrape interval: 1m (prod), 5s (test)
 - Retention: 365 days (`--storage.tsdb.retention.time=365d`)
 - Data volume: named volume `prometheus` (mounted at `/prometheus`)
-- Scrape targets: authelia:81, loki, ntfy:81, postgres-exporter, promtail, services-services:81 (path `/actuator/prometheus`), the 7 static site containers, traefik:81, wg-easy:51821 (path `/metrics/prometheus`, bearer-token auth — see the `wg-easy` prompt)
+- Scrape targets: authelia:81, loki, ntfy:81, postgres-exporter, promtail, services-services:81 (path `/actuator/prometheus`), all 8 site containers (7 static + `tunde-divat`), traefik:81, wg-easy:51821 (path `/metrics/prometheus`, bearer-token auth — see the `wg-easy` prompt)
 - In test mode, services target is `host.docker.internal:8081` (app runs on host)
-- The `tunde-divat` npm app is **not** a scrape target. It exposes `/metrics` (returns the string `up 1`), but that endpoint is used only by the Docker/Traefik health check — it is not real Prometheus metrics, and `sites_tunde-divat` is deliberately absent from `prometheus.yaml`.
+- The `tunde-divat` npm app is scraped in the same `sites` job. Its `/metrics` is an Express route returning `up 1` with `Content-Type: text/plain; version=0.0.4` — the same health-only line as the static sites' `metrics.txt`, not application metrics. The explicit content type matters: Prometheus 3.x rejects scrapes served as `text/html`, which is what Express sends for a bare string (and why the target was previously removed).
 
 ## Grafana
 

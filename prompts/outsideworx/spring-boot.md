@@ -116,7 +116,7 @@ graph TD
 
 - Caffeine with `maximumSize=76`
 - Cache names: `ciafoItems`, `soupItems`
-- Cache keys: category, id, or `category + offset`
+- Cache keys: SpEL inline lists with a per-query discriminator — ciafo `{'thumbnails', #category}`, `{'payload', #id}`, `{'previews', #category, #offset}`; soup `{'all', #category}`, `{'page', #category, #offset}`. Never concatenate (`#category + #offset` collides, e.g. `Furniture`+`12` = `Furniture1`+`2`), and keep the discriminator because several queries share one cache name
 - Eviction: `@CacheEvict(value = "...", allEntries = true)` on POST endpoints
 - `CacheFilter` adds `Cache-Control: public, max-age=86400` header for `/api/cache/**` requests
 

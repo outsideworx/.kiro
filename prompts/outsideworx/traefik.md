@@ -73,13 +73,17 @@ Every routed service needs these labels:
 ### Middlewares
 
 Currently defined:
-- `www-redirect` — Strips `www.` prefix via regex redirect (used by all sites)
+- `compress` — gzip/brotli response compression for text content types (used by all sites, incl. tunde-divat)
+- `www-redirect` — Strips `www.` prefix via regex redirect (used by all static sites)
 
 ```yaml
+- traefik.http.middlewares.compress.compress.includedcontenttypes=text/css,text/html,text/javascript,text/plain,application/javascript,application/json,image/svg+xml
 - traefik.http.middlewares.www-redirect.redirectregex.permanent=true
 - traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www\.(.+)
 - traefik.http.middlewares.www-redirect.redirectregex.replacement=https://$${1}
 ```
+
+Both are defined once, on the `outsideworx` site service's labels in `sites/compose.yaml` (`compose-test.yaml` defines only `compress`), and referenced as `<name>@swarm` / `<name>` from every router. `includedContentTypes` keeps Traefik from recompressing images/video; already-encoded responses are passed through. Compression is applied in Traefik rather than Apache (`mod_deflate` is not enabled) so it also covers the Express app.
 
 ## Routing Map
 
@@ -97,14 +101,14 @@ Currently defined:
 
 | Site | Domain(s) | Middleware |
 |------|-----------|------------|
-| come-in-and-find-out | `come-in-and-find-out.ch`, `www.come-in-and-find-out.ch` | www-redirect |
-| duckumbrella | `duckumbrella.net`, `www.duckumbrella.net` | www-redirect |
-| gaiapeeps | `gaiapeeps.com`, `www.gaiapeeps.com` | www-redirect |
-| igli | `igli.info`, `www.igli.info` | www-redirect |
-| outsideworx | `outsideworx.net`, `www.outsideworx.net` | www-redirect |
-| soupart | `soupart.net`, `www.soupart.net` | www-redirect |
-| soupkitchen | `soupkitchen.info`, `www.soupkitchen.info` | www-redirect |
-| tunde-divat | `tundedivat.com` | — (none) |
+| come-in-and-find-out | `come-in-and-find-out.ch`, `www.come-in-and-find-out.ch` | compress, www-redirect |
+| duckumbrella | `duckumbrella.net`, `www.duckumbrella.net` | compress, www-redirect |
+| gaiapeeps | `gaiapeeps.com`, `www.gaiapeeps.com` | compress, www-redirect |
+| igli | `igli.info`, `www.igli.info` | compress, www-redirect |
+| outsideworx | `outsideworx.net`, `www.outsideworx.net` | compress, www-redirect |
+| soupart | `soupart.net`, `www.soupart.net` | compress, www-redirect |
+| soupkitchen | `soupkitchen.info`, `www.soupkitchen.info` | compress, www-redirect |
+| tunde-divat | `tundedivat.com` | compress |
 
 All static sites listen on port `80` and use the `/metrics` health check. npm apps are also served on port `80` with a `/metrics` health check. The main differences from static sites are:
 - Single-host rule (no `www.` redirect)
@@ -131,4 +135,5 @@ Every static (non-npm) site is additionally reachable as a fallback mirror at `o
 2. Ensure the service is on `outsideworx` or `edge` (whichever it needs — Traefik reaches both; see `networking.md`)
 3. Set `traefik.enable=true` and configure router + service labels
 4. For TLS: use `certresolver=letsencrypt` (prod) or `tls=true` (test)
-5. If the domain needs `www.` redirect, attach the `www-redirect` middleware
+5. Attach the `compress` middleware (`middlewares=compress`, or `compress,www-redirect`)
+6. If the domain needs `www.` redirect, attach the `www-redirect` middleware
