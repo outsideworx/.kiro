@@ -16,7 +16,7 @@ The `utils/` directory houses operational scripts and background services that r
 | Aspect | Prod (compose.yaml) | Test (compose-test.yaml) |
 |--------|---------------------|--------------------------|
 | Script loading | Skips `*.draft.py` files | Runs ALL `*.py` files including drafts |
-| DB credentials | `DB_USERNAME` from `.env`, password from Docker secret `postgres_password` (`DB_PASSWORD_FILE`) | `DB_USERNAME=postgres`, `DB_PASSWORD_FILE=/dev/null` |
+| DB credentials | `DB_USERNAME`/`DB_PASSWORD` from `.env` | `DB_USERNAME=postgres`, `DB_PASSWORD=""` |
 | DB host | `DB_HOST=services_postgres` | `DB_HOST=postgres` |
 | Volumes | Named volume `cache:` for cache output (exposed to sites as `services_cache`), `./utils` bind mount for scripts | Named volume `cache:` for cache output (shared with sites as `services_cache`), `./utils` bind mount for scripts |
 | ntfy volume | Host path `/home/outsideworx/ntfy` | Named volume `ntfy:` |
@@ -35,7 +35,7 @@ Set up via `setup_logging("app-name")` from `commons/logging_config.py`.
 
 Periodically syncs base64-encoded images from PostgreSQL to disk as JPEG files. The static sites serve these cached files instead of querying the DB on every request.
 
-- Connects to PostgreSQL (env: `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD_FILE`)
+- Connects to PostgreSQL (env: `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`)
 - Polls every 60 seconds
 - Tracks changes via a `hash` column on each table — only re-exports rows whose hash changed
 - Persists known hashes to `/utils/cache/hashes.properties`
@@ -100,5 +100,5 @@ services/utils/
 | Variable | Used by | Description |
 |----------|---------|-------------|
 | `DB_HOST` | cache.py | PostgreSQL host (`services_postgres` in prod, `postgres` in test) |
-| `DB_PASSWORD_FILE` | cache.py | Path to the PostgreSQL password file (`/run/secrets/postgres_password` in prod) |
+| `DB_PASSWORD` | cache.py | PostgreSQL password |
 | `DB_USERNAME` | cache.py | PostgreSQL username (also used as DB name) |

@@ -17,9 +17,9 @@ Steps 1 (Authelia) and 5's admin controller are only needed if the client will h
 |--------|----------------|
 | Authelia | User entry in `authelia-users.yaml` + `authelia-test-users.yaml` |
 | application.yaml | Client entry under `app.clients` |
-| compose.yaml (services) | `app_clients_<client>_token` Docker secret (target `app.clients.<client>.token`) |
-| deploy.sh (services) | Secret name in the `--secrets` loop |
-| compose.yaml (sites) | External `app_clients_<client>_token` secret, mounted on the site service with `target: token` |
+| compose.yaml (services) | `APP_CLIENTS_<NAME>_TOKEN` environment variable |
+| compose.yaml (sites) | `TOKEN` environment variable on the site service |
+| .env (services + sites) | Token values |
 | ntfy | User account (prod only, via CLI) |
 | Spring Boot | Entity, Repository, Converter, ApiController, Controller (ModelVisitor) |
 | Thymeleaf | Admin template (delegate to `admin-portal` skill) |
@@ -67,27 +67,29 @@ app:
 
 ### 3. Environment Variables
 
-Services `compose.yaml` — declare the external secret under top-level `secrets:` and mount it into the `services` service (alphabetical):
+Services `compose.yaml` — add to the `services` service environment:
 
 ```yaml
-secrets:
-  app_clients_<client>_token:
-    external: true
-services:
-  services:
-    secrets:
-      - source: app_clients_<client>_token
-        target: app.clients.<client>.token
+APP_CLIENTS_<CLIENT>_TOKEN: $APP_CLIENTS_<CLIENT>_TOKEN
 ```
 
-Services `deploy.sh` — add `app_clients_<client>_token` to the `--secrets` loop, then run `./deploy.sh --secrets` on the host and enter the token.
+Services `.env` — add the token value:
 
-Sites `compose.yaml` — declare the same secret under top-level `secrets:` (`external: true`) and mount it on the site service as `token` (the Apache entrypoint reads `/run/secrets/token`):
+```
+APP_CLIENTS_<CLIENT>_TOKEN=<generated-token>
+```
+
+Sites `compose.yaml` — add `TOKEN` to the site service:
 
 ```yaml
-secrets:
-  - source: app_clients_<client>_token
-    target: token
+environment:
+  TOKEN: $APP_CLIENTS_<CLIENT>_TOKEN
+```
+
+Sites `.env` — add the same token:
+
+```
+APP_CLIENTS_<CLIENT>_TOKEN=<same-token>
 ```
 
 ### 4. ntfy User (prod only)
@@ -179,7 +181,7 @@ If the site is a work-in-progress that needs cookie-based access control, see th
 |------|--------|---------|
 | Authelia username | `info@<domain>` | `info@gaiapeeps.com` |
 | App client key | lowercase short name | `peeps` |
-| Docker secret (services) | `app_clients_<client>_token` | `app_clients_peeps_token` |
+| Env var | `APP_CLIENTS_<CLIENT>_TOKEN` | `APP_CLIENTS_PEEPS_TOKEN` |
 | Caller ID | full site name | `gaiapeeps` |
 | API path | `/api/<site-name>` | `/api/gaiapeeps` |
 | View name | `clients/<domain-prefix>` | `clients/gaiapeeps` |

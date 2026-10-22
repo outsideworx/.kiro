@@ -20,7 +20,7 @@ Includes appended to `httpd.conf` via `sed -e '$aInclude ...'`:
 | `conf/extra/blacklist.conf` | IP deny rules (prod: real IPs, test: placeholder) |
 | `conf/extra/httpd-auth.conf` | Client secret Lua auth (prod only, created by entrypoint) |
 | `conf/extra/httpd-logs.conf` | Log format and output |
-| `conf/extra/httpd-token.conf` | TOKEN injection from `/run/secrets/token` (prod only, created by entrypoint) |
+| `conf/extra/httpd-token.conf` | TOKEN env var injection (prod only, created by entrypoint) |
 | `conf/extra/httpd-proxy.conf` | Proxy, MPM, rate limit, headers, redirects, directory options |
 | `conf/extra/httpd-remoteip.conf` | RemoteIP trusted proxy ranges |
 
@@ -28,7 +28,7 @@ Includes appended to `httpd.conf` via `sed -e '$aInclude ...'`:
 
 ```sh
 #!/bin/sh
-echo "Define TOKEN $(cat /run/secrets/token 2>/dev/null || echo none)" > /usr/local/apache2/conf/extra/httpd-token.conf
+echo "Define TOKEN ${TOKEN:-none}" > /usr/local/apache2/conf/extra/httpd-token.conf
 if [ -n "${CLIENT_SECRET}" ]; then
     sed -e "s|{{CLIENT_SECRET}}|${CLIENT_SECRET}|g" \
         -e "s|{{CLIENT_SECRET_PATH}}|${CLIENT_SECRET_PATH:-/}|g" \
@@ -44,7 +44,7 @@ fi
 exec httpd-foreground
 ```
 
-- `TOKEN` is always written from the Docker secret at `/run/secrets/token` (defaults to `none` if not mounted) — uses Apache `Define` directive
+- `TOKEN` is always written (defaults to `none` if unset) — uses Apache `Define` directive
 - Client secret auth is conditionally configured (see `sites-wip.md`)
 - Test Dockerfile has its own simpler entrypoint (no `httpd-token.conf`, hardcodes `"test"` in proxy conf)
 

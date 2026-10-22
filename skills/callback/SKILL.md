@@ -86,7 +86,7 @@ Key behaviors:
 - Subject: `"Someone is interested!"`
 - Body: HTML with the visitor's contact address and a link to the product
 
-Requires the `mailersend_sdk_token` Docker secret (mounted as `/run/secrets/mailersend.sdk.token` → Spring property `mailersend.sdk.token` via configtree).
+Requires `MAILERSEND_SDK_TOKEN` environment variable (injected via compose → Spring property `mailersend.sdk.token`).
 
 ## Database
 
@@ -128,6 +128,6 @@ The `product` field is always `window.location.href` — the current page URL.
 
 2. Add the frontend modal and JS to the site (copy the pattern from come-in-and-find-out's `script/fetch/callback.js`)
 
-3. Ensure the site mounts its `app_clients_<client>_token` secret as `token` (required for `X-Auth-Token` — already configured if the site calls any API)
+3. Ensure the site has a `TOKEN` environment variable (required for `X-Auth-Token` — already configured if the site calls any API)
 
 No changes needed to the entity, repository, gateway, or database schema — the system is already multi-tenant via the `recipient` column.
