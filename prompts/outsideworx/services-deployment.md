@@ -8,7 +8,7 @@ The services stack runs on Docker Swarm as a single-node cluster. It contains th
 
 - Single manager node (all constraints: `node.role == manager`)
 - Overlay networks: `outsideworx` and `edge` (both external, attachable — see `networking.md` for which services join which)
-- Docker secret: `rsa_private_key` (RSA 4096-bit, used by Authelia for OIDC signing)
+- Docker secrets: all credentials of the stack (see "Docker Secrets (services)")
 - Stack name: `services`
 
 ## deploy.sh
@@ -21,7 +21,7 @@ The deployment script handles both initial setup and updates.
 |------|--------|
 | `--install` | Installs `docker-compose-v2`, `git`, `maven`, `npm`, `openjdk-25-jdk` via apt |
 | `--network` | Initializes Swarm (`docker swarm init --advertise-addr <IP>`) and creates both overlay networks (`edge`, `outsideworx`) |
-| `--secrets` | Generates RSA 4096 key and stores as Docker secret |
+| `--secrets` | Creates all Docker secrets (generates RSA key + random `openssl rand -base64 32` values and prints them; prompts for `mailersend_sdk_token` and the two OIDC client secrets); skips existing ones |
 | (no flag) | Deploys/updates the stack |
 
 ### Deployment Flow (no flag)
@@ -38,7 +38,7 @@ The deployment script handles both initial setup and updates.
 
 - Docker Swarm initialized (`--network` flag, requires IP address)
 - Both overlay networks created (`--network` flag)
-- RSA secret created (`--secrets` flag)
+- Docker secrets created (`--secrets` flag, interactive, run on the host)
 - `.env` file present in repo root with all required variables
 
 ## Compose Structure (compose.yaml)
@@ -66,15 +66,7 @@ Most services join the `outsideworx` external overlay network. `traefik` and `pr
 
 ### Secrets
 
-```yaml
-secrets:
-  rsa_private_key:
-    external: true
-  wg_metrics_token:
-    external: true
-```
-
-`rsa_private_key` is used only by `authelia`. `wg_metrics_token` is used only by `prometheus` (bearer auth for scraping wg-easy — see the `wg-easy` prompt).
+All secrets are declared `external: true` and created by `deploy.sh --secrets`. See "Docker Secrets (services)" below for the full list and how each consumer reads them.
 
 ### Configs
 
@@ -118,33 +110,44 @@ The `cache` named volume holds the images the `utils` container syncs from Postg
 Host bind mounts:
 - `/var/run/docker.sock` → traefik (service discovery) and promtail (container log discovery)
 
+## Docker Secrets (services)
+
+All external, created once by `deploy.sh --secrets` (idempotent: existing secrets are skipped; `rsa_private_key` is generated with `openssl genrsa 4096`, `grafana_oauth_client_secret`, `mailersend_sdk_token` and `services_oauth_client_secret` are prompted for — the OIDC client secrets must match the pbkdf2 hashes committed in `authelia.yaml`, and the MailerSend token is issued externally — all others are generated with `openssl rand -base64 32` and printed so they can be entered where needed after install). Values are written with `printf '%s'` (no trailing newline). Swarm secrets are immutable — to rotate, `docker secret rm` (after removing consumers) and re-run `--secrets`.
+
+| Secret | Consumed by | Mechanism |
+|--------|-------------|-----------|
+| `app_clients_ciafo_token` | services, sites (come-in-and-find-out) | configtree → `app.clients.ciafo.token`; sites: `/run/secrets/token` |
+| `app_clients_peeps_token` | services, sites (gaiapeeps) | configtree → `app.clients.peeps.token`; sites: `/run/secrets/token` |
+| `app_clients_soup_token` | services, sites (soupart) | configtree → `app.clients.soup.token`; sites: `/run/secrets/token` |
+| `app_clients_worx_token` | services, sites (outsideworx) | configtree → `app.clients.worx.token`; sites: `/run/secrets/token` |
+| `authelia_jwt_secret` | authelia | `AUTHELIA_JWT_SECRET_FILE` |
+| `authelia_oidc_hmac_secret` | authelia | `AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE` |
+| `authelia_session_secret` | authelia | `AUTHELIA_SESSION_SECRET_FILE` |
+| `authelia_storage_encryption_key` | authelia | `AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE` |
+| `grafana_oauth_client_secret` | grafana | `$__file{...}` in `grafana.ini` |
+| `mailersend_sdk_token` | services | configtree → `mailersend.sdk.token` |
+| `postgres_password` | postgres, postgres-exporter, services, utils | `POSTGRES_PASSWORD_FILE`, `DATA_SOURCE_PASS_FILE`, configtree → `spring.datasource.password`, `DB_PASSWORD_FILE` |
+| `rsa_private_key` | authelia | `AUTHELIA_IDENTITY_PROVIDERS_OIDC_ISSUER_PRIVATE_KEY_FILE` |
+| `services_oauth_client_secret` | services | configtree → `spring.security.oauth2.client.registration.authelia.client-secret` |
+| `wg_metrics_token` | prometheus | `credentials_file` |
+
+The `services` container sets `SPRING_CONFIG_IMPORT: configtree:/run/secrets/`; each secret's `target` is the Spring property path. Grafana has no admin user/password configured: the login form and basic auth are disabled, access is OAuth only.
+
 ## .env File (services)
 
-All variables required for the services stack:
+Remaining variables (non-secret, or not yet migrated because the image has no file-based input):
 
 | Variable | Used by | Purpose |
 |----------|---------|---------|
-| `APP_CLIENTS_CIAFO_TOKEN` | services | API auth token for come-in-and-find-out |
-| `APP_CLIENTS_PEEPS_TOKEN` | services | API auth token for gaiapeeps |
-| `APP_CLIENTS_SOUP_TOKEN` | services | API auth token for soupart |
 | `APP_CLIENTS_THEGREEN_SECRET` | sites (outsideworx) | Client secret for cookie-based access control (see `sites-wip.md`) |
-| `APP_CLIENTS_WORX_TOKEN` | services | API auth token for outsideworx |
-| `AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET` | authelia | OIDC HMAC signing secret |
-| `AUTHELIA_JWT_SECRET` | authelia | JWT signing secret |
-| `AUTHELIA_SESSION_SECRET` | authelia | Session encryption secret |
-| `AUTHELIA_STORAGE_ENCRYPTION_KEY` | authelia | Storage encryption key |
 | `DISPATCH_TOKEN` | CI/CD | GitHub PAT (not used at runtime, kept for reference) |
-| `GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET` | grafana | Grafana's OIDC client secret |
-| `GF_SECURITY_ADMIN_PASSWORD` | grafana | Grafana admin password |
-| `GF_SECURITY_ADMIN_USER` | grafana | Grafana admin username |
-| `MAILERSEND_SDK_TOKEN` | services | MailerSend API token for email |
 | `NTFY_ADMIN_TOKEN` | — | ntfy admin token (reference only) |
-| `NTFY_WEB_PUSH_PRIVATE_KEY` | ntfy | Web push VAPID private key |
+| `NTFY_WEB_PUSH_PRIVATE_KEY` | ntfy | Web push VAPID private key (not migrated: no file input) |
 | `NTFY_WEB_PUSH_PUBLIC_KEY` | ntfy | Web push VAPID public key |
-| `SPRING_DATASOURCE_PASSWORD` | services, postgres, postgres-exporter | PostgreSQL password |
-| `SPRING_DATASOURCE_USERNAME` | services, postgres, postgres-exporter | PostgreSQL username (also DB name) |
-| `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_CLIENT_SECRET` | services | OIDC client secret for Spring Security |
-| `WG_OAUTH_OIDC_CLIENT_SECRET` | wg-easy | Authelia OIDC client secret for wg-easy (see the `wg-easy` prompt) |
+| `SPRING_DATASOURCE_USERNAME` | services, postgres, postgres-exporter, utils | PostgreSQL username (also DB name) |
+| `WG_OAUTH_OIDC_CLIENT_SECRET` | wg-easy | Authelia OIDC client secret for wg-easy (not migrated: no file input; see the `wg-easy` prompt) |
+
+The file also carries variables consumed outside the services stack: `TUNDE_DIVAT_*` (consumed by the `tunde-divat` app — `apps/api/src/config/env.ts`, `prisma/seed.ts` — mapped to its unprefixed env names in `sites/compose.yaml`). See `sites-deployment.md`.
 
 ## Prod vs Test
 
@@ -156,7 +159,7 @@ All variables required for the services stack:
 | Placement | `constraints: node.role == manager` | Not applicable |
 | Deploy mode | Swarm services with replicas | Plain containers |
 | Volumes | Named Docker volumes + host bind mount (`/var/run/docker.sock`) | Ephemeral / local bind mounts |
-| PostgreSQL auth | Username/password from `.env` | Trust auth (`POSTGRES_HOST_AUTH_METHOD: trust`) |
+| PostgreSQL auth | Username from `.env`, password from Docker secret `postgres_password` | Trust auth (`POSTGRES_HOST_AUTH_METHOD: trust`) |
 | Services image | `ghcr.io/outsideworx/services:latest` | Not in compose (runs on host via IDE) |
 | Docker socket | `/var/run/docker.sock` | `/var/run/docker.sock` |
 

@@ -55,7 +55,7 @@ RequestHeader set X-Caller-Id "${NAME}"
 RequestHeader set X-Request-Id "%{UNIQUE_ID}e"
 ```
 
-`TOKEN` and `NAME` are set at container startup from environment variables.
+`NAME` is a build-time env var; `TOKEN` is an Apache `Define` written at container startup from the Docker secret mounted at `/run/secrets/token`.
 
 #### Security Headers
 
@@ -107,7 +107,7 @@ LogFormat "INFO %P --- ip=%a requestId=%{UNIQUE_ID}e: %r %>s" log_format
 
 ### Entrypoint
 
-The `CMD` runs a shell script that writes the `TOKEN` env var into an Apache config file at startup, then launches `httpd-foreground`.
+The `CMD` runs a shell script that reads `/run/secrets/token` (falls back to `none` if absent) into `conf/extra/httpd-token.conf` as `Define TOKEN ...`, then launches `httpd-foreground`.
 
 ## Dockerfile — npm Apps
 
@@ -184,11 +184,7 @@ update_config:
 
 | Variable | Used by | Purpose |
 |----------|---------|---------|
-| `APP_CLIENTS_CIAFO_TOKEN` | come-in-and-find-out | API auth token (injected as `TOKEN`) |
-| `APP_CLIENTS_PEEPS_TOKEN` | gaiapeeps | API auth token (injected as `TOKEN`) |
-| `APP_CLIENTS_SOUP_TOKEN` | soupart | API auth token (injected as `TOKEN`) |
 | `APP_CLIENTS_THEGREEN_SECRET` | outsideworx | Client secret for cookie-based access control (injected as `CLIENT_SECRET`) |
-| `APP_CLIENTS_WORX_TOKEN` | outsideworx | API auth token (injected as `TOKEN`) |
 | `TUNDE_DIVAT_AI_PROVIDER` | tunde-divat | AI image provider (`openai` or `mock`) → `AI_PROVIDER` |
 | `TUNDE_DIVAT_OPENAI_API_KEY` | tunde-divat | OpenAI API key → `OPENAI_API_KEY` (only used when provider is `openai`) |
 | `TUNDE_DIVAT_SEED_ADMIN_PASSWORD` | tunde-divat | Seeded admin password → `SEED_ADMIN_PASSWORD` |
@@ -196,7 +192,16 @@ update_config:
 | `TUNDE_DIVAT_SEED_INVITE_CODE` | tunde-divat | Registration invite code → `SEED_INVITE_CODE` |
 | `TUNDE_DIVAT_SESSION_SECRET` | tunde-divat | JWT/session signing secret (≥32 chars) → `SESSION_SECRET` |
 
-Only static sites that call the API need a `TOKEN`. Static sites without API calls (duckumbrella, igli, soupkitchen) have no `TOKEN` environment variable. `outsideworx` has its own `TOKEN` (`APP_CLIENTS_WORX_TOKEN`, caller `outsideworx`) — in addition to its `CLIENT_SECRET` used to gate the `thegreen` submodule. It actively uses this token: the `/clients/<name>` mirror instances of come-in-and-find-out, gaiapeeps, and soupart are served from the `outsideworx` container, and their frontend JS makes `/api/` calls that the `outsideworx` Apache proxies to services, injecting `X-Caller-Id: outsideworx` and the WORX token. The `tunde-divat` npm app uses none of the `TOKEN`/`CLIENT_SECRET` mechanism — it has its own `TUNDE_DIVAT_*` variables (mapped to the Express app's env in compose). `DATABASE_URL`, `UPLOAD_DIR`, and `CORS_ORIGIN` are set as literals in `compose.yaml`, not via `.env`.
+API tokens are **not** in `.env`: they are the same external Swarm secrets the services stack uses (`app_clients_{ciafo,peeps,soup,worx}_token`, created by `services/deploy.sh --secrets`), declared `external: true` in `sites/compose.yaml` and mounted into each API site with `target: token` (→ `/run/secrets/token`):
+
+| Secret | Site |
+|--------|------|
+| `app_clients_ciafo_token` | come-in-and-find-out |
+| `app_clients_peeps_token` | gaiapeeps |
+| `app_clients_soup_token` | soupart |
+| `app_clients_worx_token` | outsideworx |
+
+Only static sites that call the API mount a token secret. Static sites without API calls (duckumbrella, igli, soupkitchen) mount none. `outsideworx` has its own token (`app_clients_worx_token`, caller `outsideworx`) — in addition to its `CLIENT_SECRET` used to gate the `thegreen` submodule. It actively uses this token: the `/clients/<name>` mirror instances of come-in-and-find-out, gaiapeeps, and soupart are served from the `outsideworx` container, and their frontend JS makes `/api/` calls that the `outsideworx` Apache proxies to services, injecting `X-Caller-Id: outsideworx` and the WORX token. The `tunde-divat` npm app uses none of the `TOKEN`/`CLIENT_SECRET` mechanism — it has its own `TUNDE_DIVAT_*` variables (mapped to the Express app's env in compose). `DATABASE_URL`, `UPLOAD_DIR`, and `CORS_ORIGIN` are set as literals in `compose.yaml`, not via `.env`.
 
 ## Prod vs Test
 
@@ -206,7 +211,7 @@ Only static sites that call the API need a `TOKEN`. Static sites without API cal
 |--------|-------------------|------------------------|
 | Blacklist | `blacklist.conf` (full) | `blacklist-test.conf` (minimal) |
 | Proxy target | `http://services_services/api/` | `http://host.docker.internal:8080/api/` |
-| Token injection | `TOKEN` env var at runtime | Hardcoded `"test"` |
+| Token injection | Docker secret `/run/secrets/token` at runtime | Hardcoded `"test"` |
 | Token config | Via entrypoint script (`httpd-token.conf`) | Not used (hardcoded in proxy conf) |
 | Rate limit | 1536 KB/s | 640 KB/s |
 | MPM workers | 128 max | 4 max |

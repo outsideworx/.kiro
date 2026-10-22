@@ -181,7 +181,7 @@ src/test/java/
 | Datasource | `jdbc:postgresql://services-postgres:5432/` with credentials | `jdbc:postgresql://localhost:5432/` trust auth |
 | SSL | Normal validation | Trust-all (via `CommandLineRunner` in `@Profile("test")`) |
 | OAuth URLs | `https://oauth.outsideworx.net/...` | `https://oauth.localhost/...` |
-| Client tokens | From environment variables | Hardcoded `"test"` |
+| Client tokens | From Docker secrets (configtree) | Hardcoded `"test"` |
 | Client origins | Specific domains | `"*"` (permissive CORS) |
 | Service URLs | `https://grafana.outsideworx.net` etc. | `https://grafana.localhost` etc. |
 

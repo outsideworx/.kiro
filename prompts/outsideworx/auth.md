@@ -59,7 +59,7 @@ Example: `info@come-in-and-find-out.ch` → domain `come-in-and-find-out` → vi
 | Aspect | Prod | Test |
 |--------|------|------|
 | Domain | `outsideworx.net` | `localhost` |
-| Secrets | Environment variables | Hardcoded in YAML |
+| Secrets | Docker secrets (`*_FILE` env vars) | Hardcoded in YAML |
 | Private key | Docker secret (`rsa_private_key`) | Inline in config |
 | Redirect URIs | `https://services.outsideworx.net/...` | `http://localhost:8080/...` |
 
@@ -122,7 +122,7 @@ app:
       origin: "https://outsideworx.net"
 ```
 
-Tokens are not present in `application.yaml`. Spring's relaxed binding maps the environment variable `APP_CLIENTS_CIAFO_TOKEN` to `app.clients.ciafo.token` automatically — underscores become dots, uppercase becomes lowercase. No explicit YAML entry is needed.
+Tokens are not present in `application.yaml`. In prod they are Docker Swarm secrets mounted under `/run/secrets/` with the property path as file name (e.g. `/run/secrets/app.clients.ciafo.token`), loaded via `SPRING_CONFIG_IMPORT: configtree:/run/secrets/`. No explicit YAML entry is needed.
 
 Each `origin` is the site's official domain, used for CORS on that client's API endpoints. If an official domain is discontinued and the `outsideworx.net/clients/<name>` mirror becomes the main entrypoint, the corresponding `origin` (and the `@CrossOrigin` it feeds) will need to be refactored to `https://outsideworx.net`, since API calls from the mirror originate from that host.
 
@@ -132,17 +132,17 @@ Mapped to `Properties.clients` (Map<String, Client>) where each `Client` has: `c
 
 ```mermaid
 flowchart TD
-    env[".env\nAPP_CLIENTS_CIAFO_TOKEN=value"]
-    compose["compose.yaml environment:\nAPP_CLIENTS_CIAFO_TOKEN: $APP_CLIENTS_CIAFO_TOKEN"]
-    container["Container env var:\nAPP_CLIENTS_CIAFO_TOKEN=value"]
+    secret["Swarm secret\napp_clients_ciafo_token"]
+    compose["compose.yaml secrets:\nsource: app_clients_ciafo_token\ntarget: app.clients.ciafo.token"]
+    container["Container file:\n/run/secrets/app.clients.ciafo.token"]
     props["Properties.clients.get('ciafo').token"]
 
-    env -->|"sourced by deploy.sh"| compose
-    compose -->|"Swarm sets on container"| container
-    container -->|"Spring relaxed binding\nAPP_CLIENTS_CIAFO_TOKEN → app.clients.ciafo.token"| props
+    secret -->|"created by deploy.sh --secrets"| compose
+    compose -->|"Swarm mounts into container"| container
+    container -->|"Spring configtree import\nfile name → property path"| props
 ```
 
-Spring's relaxed binding automatically maps the environment variable `APP_CLIENTS_CIAFO_TOKEN` to the property path `app.clients.ciafo.token` — underscores become dots, uppercase becomes lowercase. No explicit YAML entry is needed; the `@ConfigurationProperties` class binds directly from the environment variable.
+`SPRING_CONFIG_IMPORT: configtree:/run/secrets/` makes Spring read every file in `/run/secrets/` as a property whose name is the file name. The same mechanism supplies `mailersend.sdk.token`, `spring.datasource.password` and `spring.security.oauth2.client.registration.authelia.client-secret`. The sites stack mounts the same external secrets (`app_clients_<client>_token`) with `target: token`; the Apache entrypoint reads `/run/secrets/token` into `Define TOKEN`, which feeds the `X-Auth-Token` header.
 
 ### AuthTokenFilter
 

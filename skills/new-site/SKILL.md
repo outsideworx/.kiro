@@ -19,7 +19,7 @@ Every site falls into one of these categories. Determine the archetype before sc
 |-----------|--------------|---------|-------------|
 | Portfolio/Gallery | soupart, come-in-and-find-out | Yes | Paginated images from API, category navigation |
 | Link Collector | duckumbrella, gaiapeeps | Optional | Social links or API-fetched embeds |
-| Informational | igli, soupkitchen, outsideworx | No | Static content, no API calls of its own (outsideworx has an `APP_CLIENTS_WORX_TOKEN`, used to proxy `/api/` calls from the `/clients/<name>` mirror sites) |
+| Informational | igli, soupkitchen, outsideworx | No | Static content, no API calls of its own (outsideworx has an `app_clients_worx_token` secret, used to proxy `/api/` calls from the `/clients/<name>` mirror sites) |
 | WIP (submodule) | thegreen | No (initially) | Hosted under outsideworx.net, client-secret protected |
 | Dynamic npm app | tunde-divat | Self-contained | Node/Express + Vite SPA + own SQLite DB, built from `Dockerfile.npm`, port 80 |
 
@@ -446,10 +446,12 @@ Add a service entry to `sites/compose.yaml`:
 <site-name>:
   environment:
     NAME: <site-name>
-    TOKEN: $APP_CLIENTS_<CLIENT>_TOKEN
   image: ghcr.io/outsideworx/<site-name>:latest
   networks:
     - outsideworx
+  secrets:
+    - source: app_clients_<client>_token
+      target: token
   deploy:
     labels:
       - traefik.enable=true
@@ -467,11 +469,11 @@ Add a service entry to `sites/compose.yaml`:
 
 Add the corresponding entry to `sites/compose-test.yaml` (use `*.localhost` domain, `tls=true` instead of `certresolver`, health check interval `5s`, build context instead of image).
 
-Sites without API access omit the `TOKEN` environment variable.
+Sites without API access omit the `secrets:` entry. The `app_clients_<client>_token` secret must also be declared under the top-level `secrets:` with `external: true` (it is created by `services/deploy.sh --secrets` — see the `new-client` skill).
 
 #### Network: `outsideworx` vs `edge`
 
-A static site joins `outsideworx` only if it needs to reach the Spring Boot backend — i.e. it has an API token (`TOKEN` env var) or mounts `services_cache`. A site with neither (no `TOKEN`, no cache mount) joins `edge` instead — see `networking.md` for the full rationale. Traefik reaches sites on either network because it joins both.
+A static site joins `outsideworx` only if it needs to reach the Spring Boot backend — i.e. it mounts an API token secret or `services_cache`. A site with neither (no token, no cache mount) joins `edge` instead — see `networking.md` for the full rationale. Traefik reaches sites on either network because it joins both.
 
 ```yaml
 # Site with API access or cache mount
