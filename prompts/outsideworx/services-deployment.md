@@ -8,7 +8,7 @@ The services stack runs on Docker Swarm as a single-node cluster. It contains th
 
 - Single manager node (all constraints: `node.role == manager`)
 - Overlay networks: `outsideworx` and `edge` (both external, attachable — see `networking.md` for which services join which)
-- Docker secret: `rsa_private_key` (RSA 4096-bit, used by Authelia for OIDC signing)
+- Docker secrets: `rsa_private_key` (RSA 4096-bit, used by Authelia for OIDC signing), `wg_metrics_token` (Prometheus bearer token for wg-easy — see the `wg-easy` prompt)
 - Stack name: `services`
 
 ## deploy.sh
@@ -20,8 +20,8 @@ The deployment script handles both initial setup and updates.
 | Flag | Action |
 |------|--------|
 | `--install` | Installs `docker-compose-v2`, `git`, `maven`, `npm`, `openjdk-25-jdk` via apt |
-| `--network` | Initializes Swarm (`docker swarm init --advertise-addr <IP>`) and creates both overlay networks (`edge`, `outsideworx`) |
-| `--secrets` | Generates RSA 4096 key and stores as Docker secret |
+| `--network` | Initializes Swarm (`docker swarm init --advertise-addr <IP>`), creates both overlay networks (`edge`, `outsideworx`), and loads the iptables kernel modules wg-easy needs (`/etc/modules-load.d/wg-easy.conf`) |
+| `--secrets` | Generates `wg_metrics_token` (printed once — must be entered in the wg-easy admin UI) and the RSA 4096 key, stores both as Docker secrets |
 | (no flag) | Deploys/updates the stack |
 
 ### Deployment Flow (no flag)
@@ -38,8 +38,13 @@ The deployment script handles both initial setup and updates.
 
 - Docker Swarm initialized (`--network` flag, requires IP address)
 - Both overlay networks created (`--network` flag)
-- RSA secret created (`--secrets` flag)
+- Secrets created (`--secrets` flag): `rsa_private_key`, `wg_metrics_token`
+- Host firewall: `51820/udp` open (wg-easy VPN tunnel)
 - `.env` file present in repo root with all required variables
+
+### Post-Deploy (first time only)
+
+- wg-easy: enable Prometheus metrics in the admin UI and set the password to the `wg_metrics_token` printed by `--secrets` (see the `wg-easy` prompt, "Initial Setup")
 
 ## Compose Structure (compose.yaml)
 

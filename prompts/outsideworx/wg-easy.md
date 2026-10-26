@@ -98,8 +98,9 @@ No `www-redirect` middleware (single-host rule, same reasoning as the npm app si
 
 - wg-easy exposes real Prometheus metrics (not just a health-check string) at `/metrics/prometheus` on the same port as the admin UI (51821).
 - The endpoint requires a bearer token — `wg-easy`'s own config, not an Authelia/Traefik concern. The token is a dedicated Docker secret, `wg_metrics_token`, read by Prometheus from the mounted secret file.
-- Prometheus must be able to reach `wg-easy` directly (not through Traefik) on the `edge` network — this is one of the two reasons `prometheus` joins `edge` in addition to `outsideworx` (the other being wg-easy's own future use of Prometheus data, if any). See `networking.md`.
-- In test (`prometheus-test.yaml`), the target is the short container name `wg-easy:51821` and the token is a hardcoded test credential rather than a secret file.
+- The token is **not** configured through env vars or compose: wg-easy only accepts it after the Prometheus metrics endpoint is enabled and the same value is set as its metrics password in the admin UI (see "Initial Setup"). Until then the scrape fails.
+- Prometheus must be able to reach `wg-easy` directly (not through Traefik) on the `edge` network — this is why `prometheus` joins `edge` in addition to `outsideworx`. See `networking.md`.
+- In test (`prometheus-test.yaml`), the target is the short container name `wg-easy:51821` and the token is the hardcoded credential `test` rather than a secret file.
 
 See `monitoring.md` for the full scrape target list and general Prometheus conventions.
 
@@ -116,7 +117,7 @@ See `monitoring.md` for the full scrape target list and general Prometheus conve
 
 ### Generating `wg_metrics_token`
 
-Added to `services/deploy.sh --secrets`, alongside the existing RSA key generation:
+Part of `services/deploy.sh --secrets`, alongside the RSA key generation:
 
 ```bash
 wg_metrics_token=$(openssl rand -base64 32)
@@ -124,11 +125,16 @@ echo "wg_metrics_token: $wg_metrics_token"
 echo "$wg_metrics_token" | docker secret create wg_metrics_token -
 ```
 
-The printed value must be copied into `prometheus.yaml`'s bearer credential (prod reads it from the secret file directly, so no manual copy is actually needed there — the print is for reference/rotation bookkeeping).
+The token has two consumers:
+
+- **Prometheus** reads it from the mounted secret file (`/run/secrets/wg_metrics_token`) — no manual step.
+- **wg-easy** must be told the same value by hand: the printed `wg_metrics_token: ...` line is the only time it is shown (Docker secrets cannot be read back), so copy it and enter it as the Prometheus metrics password in the wg-easy admin UI (see "Initial Setup").
+
+Rotation: Swarm secrets are immutable — remove the service reference, `docker secret rm wg_metrics_token`, recreate it, redeploy, and update the password in the wg-easy UI.
 
 ### Kernel Modules (`deploy.sh --network`)
 
-wg-easy's NAT/forwarding needs iptables kernel modules not guaranteed to be loaded on a fresh host. `--network` now also writes a modules-load config and reloads it:
+wg-easy's NAT/forwarding needs iptables kernel modules not guaranteed to be loaded on a fresh host. `--network` also writes a modules-load config and reloads it:
 
 ```bash
 cat <<-EOF > /etc/modules-load.d/wg-easy.conf
@@ -140,6 +146,19 @@ EOF
 systemctl restart systemd-modules-load.service
 ```
 
+## Initial Setup
+
+On a fresh host, in order:
+
+1. `deploy.sh --network <IP>` — overlay networks + kernel modules. Open `51820/udp` on the host firewall (public VPN port, host mode).
+2. `deploy.sh --secrets` — note the printed `wg_metrics_token` value.
+3. Add `WG_OAUTH_OIDC_CLIENT_SECRET` to `.env` (plaintext; its pbkdf2 hash goes into the `wg-easy` client in `authelia.yaml`).
+4. `deploy.sh` — deploy the stack.
+5. Open `https://vpn.outsideworx.net`, log in via Authelia, finish the wg-easy setup.
+6. In the wg-easy admin panel, enable the Prometheus metrics endpoint and set its password to the `wg_metrics_token` value from step 2. The `wg-easy` Prometheus target turns green on the next scrape.
+
+The admin-UI settings live in the `wireguard` volume, so step 6 only needs repeating when the volume is wiped or the token is rotated. In test there is no volume: every fresh `compose-test.yaml` up requires redoing the UI setup, with metrics password `test`.
+
 ## Prod vs Test
 
 | Aspect | Prod (`compose.yaml`) | Test (`compose-test.yaml`) |
@@ -147,7 +166,7 @@ systemctl restart systemd-modules-load.service
 | OIDC server | `https://oauth.outsideworx.net` | `https://oauth.localhost` |
 | TLS trust | Normal validation | `NODE_TLS_REJECT_UNAUTHORIZED: 0` (self-signed Traefik cert in test) |
 | OIDC client secret | `$WG_OAUTH_OIDC_CLIENT_SECRET` (from `.env`) | Hardcoded `wg-easy` |
-| Metrics token | Docker secret (`wg_metrics_token`), file-mounted | Hardcoded test credential in `prometheus-test.yaml` |
+| Metrics token | Docker secret (`wg_metrics_token`), file-mounted + entered in admin UI | Hardcoded `test` in `prometheus-test.yaml` + entered in admin UI |
 | Domain | `vpn.outsideworx.net` | `vpn.localhost` |
 | Volume | Named volume `wireguard` | Ephemeral (no volume declared) |
 | TLS (Traefik) | `certresolver=letsencrypt` | `tls=true` (self-signed) |
