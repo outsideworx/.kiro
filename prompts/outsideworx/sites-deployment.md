@@ -151,12 +151,12 @@ Simple deployment — no Swarm init needed (uses the network created by services
 
 ### Flow
 
-1. Creates `/home/outsideworx/sites/` (if missing)
-2. Copies `.env`, `blacklist.conf`, `compose.yaml`
-3. Sources `.env`
-4. `docker compose pull`
-5. `docker stack deploy -c compose.yaml sites --detach=false --resolve-image=always`
-6. Force-updates all services
+1. Sources `.env`
+2. `docker compose pull`
+3. `docker stack deploy -c compose.yaml sites --detach=false --resolve-image=always`
+4. Force-updates all services
+
+Like the services `deploy.sh`, this deploys in place from the repo directory — it does **not** copy files to a separate deploy directory. The sites stack has no host bind mounts or config `file:` dependencies (`blacklist.conf` is baked into the image at Docker build time, not mounted), so nothing needs the Docker daemon to share the repo's host path.
 
 ### Update Strategy
 
@@ -258,7 +258,7 @@ Two distinct deployment paths exist:
 
 The three sites with no API token and no `services_cache` mount (`duckumbrella`, `igli`, `soupkitchen`) sit on the `edge` overlay instead of `outsideworx` — they never call the Spring Boot backend, so they have no reason to join `outsideworx`; Traefik still reaches them because it joins both networks. See `networking.md` for the full rationale and per-service breakdown. `tunde-divat` is on `edge` for the same reason (self-contained, no backend calls).
 
-The cache volume is a Docker named volume (`services_cache`, external — created by the services stack's `utils` container as `cache`). It is no longer a host bind mount; nothing under `/home/outsideworx/utils` is involved anymore. Static sites that serve cached images (`come-in-and-find-out`, `soupart`) mount the whole volume read-only at `/htdocs/cache` (not a per-client subdirectory). In test, both sites share the same named volume mounted at `/htdocs/cache`. The `tunde-divat` volume is a separate Docker named volume holding the app's own SQLite database and uploaded images — not a cache of the services DB.
+The cache volume is a Docker named volume (`services_cache`, external — created by the services stack's `utils` container as `cache`). Static sites that serve cached images (`come-in-and-find-out`, `soupart`) mount the whole volume read-only at `/htdocs/cache` (not a per-client subdirectory). In test, both sites share the same named volume mounted at `/htdocs/cache`. The `tunde-divat` volume is a separate Docker named volume holding the app's own SQLite database and uploaded images — not a cache of the services DB.
 
 ## Fallback / Mirror URLs (`/clients/<name>`)
 

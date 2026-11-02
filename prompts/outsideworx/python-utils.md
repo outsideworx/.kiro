@@ -11,6 +11,11 @@ The `utils/` directory houses operational scripts and background services that r
 - Shared logging: `commons/logging_config.py`
 - Deployed as a single container in the services stack
 
+### Script Delivery
+
+- **Prod**: scripts are **not** bind-mounted. `deploy.sh` packs the `utils/` folder (excluding the server-only `operations/`) into a single deterministic `utils.tar`, injected as one Swarm config named `utils` and mounted at `/etc/utils.tar`. The container extracts it to `/etc/utils` at startup, then runs every top-level `*.py` (skipping `*.draft.py`). A tarball is used because Swarm configs are single files but the sidecar needs a directory tree (`cache.py` + the `commons/` package + `requirements.txt`). Adding a new script needs no compose/`deploy.sh` change — it is picked up from the tar automatically. See `services-deployment.md` → "The `utils` Config Tarball". This replaced the former `./utils:/etc/utils` bind mount, which failed when the Docker daemon did not share the repo's host filesystem (`bind source path does not exist`).
+- **Test**: still a plain `./utils:/etc/utils` bind mount (every test service uses bind mounts, and test deliberately runs ALL `*.py` including drafts for live editing). The bind works on a normal dev machine running `docker compose up`.
+
 ### Prod vs Test
 
 | Aspect | Prod (compose.yaml) | Test (compose-test.yaml) |
@@ -18,8 +23,8 @@ The `utils/` directory houses operational scripts and background services that r
 | Script loading | Skips `*.draft.py` files | Runs ALL `*.py` files including drafts |
 | DB credentials | `DB_USERNAME`/`DB_PASSWORD` from `.env` | `DB_USERNAME=postgres`, `DB_PASSWORD=""` |
 | DB host | `DB_HOST=services_postgres` | `DB_HOST=postgres` |
-| Volumes | Named volume `cache:` for cache output (exposed to sites as `services_cache`), `./utils` bind mount for scripts | Named volume `cache:` for cache output (shared with sites as `services_cache`), `./utils` bind mount for scripts |
-| ntfy volume | Host path `/home/outsideworx/ntfy` | Named volume `ntfy:` |
+| Script source | `utils.tar` Swarm config, extracted to `/etc/utils` at startup | `./utils` bind mount at `/etc/utils` |
+| Volumes | Named volume `cache:` for cache output (exposed to sites as `services_cache`) | Named volume `cache:` for cache output (shared with sites as `services_cache`), `./utils` bind mount for scripts |
 
 ## Log Format
 
@@ -75,7 +80,7 @@ Pretty-prints a table of all running containers with CPU %, RAM (MB), network I/
 
 ### docker-wipe.sh
 
-Nuclear option: removes both stacks, all secrets, all images, prunes the system, deletes the deployment directories (`/home/outsideworx/services`, `/home/outsideworx/sites`), then runs `apt upgrade`. Cache data lives in the `cache` Docker named volume and is removed by the `docker system prune -af` step, not by a directory delete. Interactive confirmation required.
+Nuclear option: removes both stacks, all secrets, all images, prunes the system, then runs `apt upgrade`. Cache data lives in the `cache` Docker named volume and is removed by the `docker system prune -af` step. Interactive confirmation required.
 
 ### system-swap.sh
 

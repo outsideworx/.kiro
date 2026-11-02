@@ -27,13 +27,14 @@ The deployment script handles both initial setup and updates.
 
 ### Deployment Flow (no flag)
 
-1. Creates `/home/outsideworx/services/` (if missing)
-2. Copies `utils/` directory and config files to deploy directory
-3. Sources `.env` file
-4. Computes SHA256 hashes of config files (for Swarm config naming)
-5. `docker compose pull`
-6. `docker stack deploy -c compose.yaml services --detach=false --resolve-image=always`
-7. Force-updates all services (rolling restart)
+1. Sources `.env` file
+2. Computes SHA256 hashes of config files (for Swarm config naming)
+3. Builds `utils.tar` from the `utils/` scripts (see "The `utils` Config Tarball") and hashes it
+4. `docker compose pull`
+5. `docker stack deploy -c compose.yaml services --detach=false --resolve-image=always`
+6. Force-updates all services (rolling restart)
+
+`deploy.sh` deploys in place from the repo directory — it does **not** copy files to a separate deploy directory. Everything the stack needs is either a Swarm config (file content injected from the repo, no host path dependency) or a named volume. This matters because the Docker daemon resolves bind-mount and config `file:` paths from its own filesystem view; the `utils` scripts are shipped as a config (not a bind mount) so the sidecar does not depend on the daemon sharing the repo's host path.
 
 ### Prerequisites
 
@@ -93,14 +94,57 @@ configs:
     name: authelia-${HASH_AUTHELIA}
 ```
 
-Config files: `authelia.yaml`, `authelia-users.yaml`, `grafana.ini`, `logo.png`, `loki.yaml`, `ntfy.yaml`, `prometheus.yaml`, `promtail.yaml`.
+Config files: `authelia.yaml`, `authelia-users.yaml`, `grafana.ini`, `logo.png`, `loki.yaml`, `ntfy.yaml`, `prometheus.yaml`, `promtail.yaml`, plus `utils.tar` (generated — see below).
+
+#### The `utils` Config Tarball
+
+The Python sidecar's scripts are **not** bind-mounted from the host. The whole `utils/` folder (minus the server-only `operations/` shell scripts) is packed into a single tar archive and injected as one Swarm config named `utils`:
+
+```yaml
+configs:
+  utils:
+    file: ./utils.tar
+    name: utils-${HASH_UTILS}
+```
+
+`deploy.sh` builds `utils.tar` deterministically before computing its hash (so the hash — and therefore the Swarm config — only changes when script content changes):
+
+```bash
+tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
+    -cf utils.tar -C utils --exclude=operations cache.py commons requirements.txt
+export HASH_UTILS=$(sha256sum utils.tar | cut -c1-8)
+```
+
+The `utils` service mounts the tar at `/etc/utils.tar` and extracts it at startup before running the scripts:
+
+```yaml
+command: >-
+  bash -c '
+    mkdir -p /etc/utils;
+    tar -xf /etc/utils.tar -C /etc/utils;
+    cd /etc/utils;
+    pip install -r requirements.txt -q &&
+    for script in *.py; do
+      [[ "$$script" == *.draft.py ]] && continue;
+      python "$$script" &
+    done;
+    wait'
+configs:
+  - source: utils
+    target: /etc/utils.tar
+```
+
+Why a tarball and not one config per file: Swarm configs are single files, and the sidecar needs a directory tree (`cache.py`, the `commons/` package, `requirements.txt`, and any future files/drafts). A tar is one config that carries the whole tree, so adding a new script needs no new config entry. This replaced the former `./utils:/etc/utils` bind mount, which required the Docker daemon to share the repo's host filesystem — it does not in all environments, so the bind source could appear missing and the `utils` task would be rejected with `invalid mount config ... bind source path does not exist`.
+
+`utils.tar` is a generated build artifact (gitignored); it is regenerated on every `deploy.sh` run. The `operations/` scripts are excluded because they are run manually on the server, not inside the sidecar.
 
 #### Adding a New Config
 
 1. Add the config entry to `compose.yaml` under `configs:` with `name: <name>-${HASH_<NAME>}`
-2. Add `export HASH_<NAME>=$(sha256sum <file> | cut -c1-8)` to `deploy.sh`
-3. Add the file to the `cp` command in `deploy.sh`
-4. Mount it in the service via `configs:` with `source` and `target`
+2. Add `export HASH_<NAME>=$(sha256sum <file> | cut -c1-8)` to `deploy.sh` (the file is hashed in place in the repo — there is no copy step)
+3. Mount it in the service via `configs:` with `source` and `target`
+
+Adding a new `utils` script needs none of the above — just drop the `.py` file into `utils/` (and import it as usual); the tarball config picks it up automatically.
 
 ### Volumes
 
@@ -119,7 +163,7 @@ volumes:
   wireguard:
 ```
 
-The `cache` named volume holds the images the `utils` container syncs from PostgreSQL. It is exposed to the sites stack as the external volume `services_cache` (Swarm prefixes the stack name), which `come-in-and-find-out` and `soupart` mount read-only. This replaced the former `/home/outsideworx/utils` host bind mount — `deploy.sh` no longer creates that directory. The `wireguard` volume holds wg-easy's config/peers (see the `wg-easy` prompt).
+The `cache` named volume holds the images the `utils` container syncs from PostgreSQL. It is exposed to the sites stack as the external volume `services_cache` (Swarm prefixes the stack name), which `come-in-and-find-out` and `soupart` mount read-only. The `wireguard` volume holds wg-easy's config/peers (see the `wg-easy` prompt).
 
 Host bind mounts:
 - `/var/run/docker.sock` → traefik (service discovery) and promtail (container log discovery)
