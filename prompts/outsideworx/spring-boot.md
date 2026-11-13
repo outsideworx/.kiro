@@ -28,7 +28,7 @@ net.outsideworx.services/
 │   └── LogbackFilter.java
 ├── controllers/
 │   ├── IndexController.java         # @RestController, OAuth2-protected portal (dispatches to ModelVisitor)
-│   ├── ViewControllers.java         # Redirect mappings (/grafana, /ntfy)
+│   ├── ViewControllers.java         # /<key> redirect per app.services entry
 │   ├── CallbackController.java      # Shared callback API
 │   ├── ErrorController.java
 │   ├── ModelVisitor.java            # Interface for client views
@@ -133,7 +133,7 @@ graph TD
 - `Properties` class maps `app.clients` and `app.services` from YAML
 - Each client has: `caller`, `origin`, `token` (see auth.md for details)
 - Each service has: `url` (external URL for redirects)
-- Services entries: `grafana`, `ntfy`, `oauth` — used for redirect URLs (`/grafana`, `/ntfy`) and the OAuth logout redirect
+- Services entries: `grafana`, `ntfy`, `oauth`, `operator`, `vpn`. Each becomes a `/<key>` redirect (`ViewControllers`); `oauth` is also the error redirect, and `operator` is the knock URL the outsideworx portal JS calls (passed as the `knockUrl` model attribute). Never hardcode these URLs in templates, so the test profile keeps working
 - Profiles: default (prod) and `test`
 
 ### Logging
