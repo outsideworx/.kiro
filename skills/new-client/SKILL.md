@@ -1,6 +1,6 @@
 ---
 name: new-client
-description: Adding a new client to the platform — Authelia user setup, application.yaml client config, API auth tokens (compose/.env wiring for services and sites), ntfy user creation, and the Spring Boot Entity/Repository/Converter/ApiController/Controller code pattern. Use when onboarding a new client that needs API access and database storage, or troubleshooting a client's auth/portal redirect loop. May include an admin portal view (delegates to admin-portal) and a database changelog (delegates to liquibase).
+description: Onboard a new client that needs API access and database storage: Authelia user, application.yaml client entry, API tokens (compose/.env for services and sites), ntfy user, naming of client key, caller id and table, and the Spring Boot Entity/Repository/Converter/ApiController/Controller pattern. Use when adding a client or endpoint, or when a client's login redirect-loops. Delegates admin views to admin-portal, schema to liquibase, and site/compose wiring to new-site.
 ---
 
 # New Client Registration
@@ -38,7 +38,7 @@ Add entry to both `authelia-users.yaml` (prod) and `authelia-test-users.yaml` (t
     password: "<argon2id hash>"
 ```
 
-- The email domain determines which portal view the user sees (regex: `(?<=@)[^.]+(?=\\.)`)
+- The email domain determines which portal view the user sees (see `auth.md`, "Portal Routing Logic")
 - Generate prod hash: `docker run --rm authelia/authelia authelia crypto hash generate argon2 --password '<password>'`
 - Test users all share the same hash (password: `test`): `$argon2id$v=19$m=65536,t=3,p=4$vSWXSYTyISnsOUqnNw6PQA$FvOvwV2ASM4Ii5ax2pt+lMAY+01DpZEtX+50IjPFhBw`
 
@@ -52,8 +52,9 @@ app:
     <CLIENT>:
       caller: "<site-name>"
       origin: "https://<domain>"
-      token: ${APP_CLIENTS_<CLIENT>_TOKEN}
 ```
+
+Do not add a `token` entry. Spring's relaxed binding maps the `APP_CLIENTS_<CLIENT>_TOKEN` environment variable (step 3) to `app.clients.<client>.token` on its own; a YAML entry would be redundant and is deliberately absent from `application.yaml` (see the `auth` prompt).
 
 Add test override in `application-test.yaml`:
 
@@ -190,4 +191,4 @@ If the site is a work-in-progress that needs cookie-based access control, see th
 
 ## Common Pitfall
 
-If a user can authenticate via Authelia but sees a redirect loop or error page, the most likely cause is a missing Thymeleaf template for their email domain. The `ErrorController` logs `"Supressing Whitelabel Error Page"` and redirects to Authelia, creating an apparent loop.
+A user who authenticates via Authelia but lands in a redirect loop almost always has no Thymeleaf template or `ModelVisitor` for their email domain; the diagnosis is in `troubleshooting.md`, the fix in the `admin-portal` skill.

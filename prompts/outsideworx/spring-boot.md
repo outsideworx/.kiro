@@ -32,7 +32,7 @@ net.outsideworx.services/
 │   ├── CallbackController.java      # Shared callback API
 │   ├── ErrorController.java
 │   ├── ModelVisitor.java            # Interface for client views
-│   └── clients/<name>/              # <Name>ApiController, <Name>Controller per client
+│   └── clients/<name>/              # <Name>ApiController, <Name>Controller per client (soup lives in clients/soupart/ciafo/; worx has only OutsideworxController)
 ├── converters/
 │   ├── ItemsConverter.java          # Base: items[n].field parsing
 │   ├── ImageConverter.java          # Extends ItemsConverter: base64 + resize
@@ -43,7 +43,7 @@ net.outsideworx.services/
 ├── models/
 │   ├── Callback.java                # DTO (@Data, no JPA)
 │   ├── CallbackEntity.java          # JPA entity
-│   └── clients/<name>/              # <Name>Entity per client (+ mapping/ interfaces if needed)
+│   └── clients/<name>/              # <Name>Entity per client (+ mapping/ interfaces if needed; worx uses KeyValueEntity)
 └── repositories/
     ├── CallbackRepository.java
     └── clients/                     # <Name>Repository per client
@@ -59,11 +59,11 @@ For Java coding conventions (class-level rules, imports, fields, dependency inje
 - Admin controllers: `@Controller`, package-private, implement `ModelVisitor`
 - Return types: `List<T>` for API endpoints, `String` (redirect) or `ModelAndView` for admin
 - Log every incoming request with `log.info`
-- Register metrics via `GrafanaGateway.registerRequest(endpoint, fetch)`
+- Register metrics via `GrafanaGateway.registerRequest(endpoint, fetch)` in the client API controllers (`CallbackController` does not)
 
 ### The Client Pattern
 
-Each client (ciafo, peeps, soup) follows this structure:
+Each data client (ciafo, peeps, soup) follows this structure; `worx` is a smaller variant (key-value entity, admin controller only, no image handling):
 
 ```mermaid
 graph TD
@@ -83,8 +83,8 @@ graph TD
 
 1. **Entity** — `@Data @Entity @Table(name = "UPPER_CASE")`, `@Id @GeneratedValue`, `@Transient Boolean delete` field for form handling
 2. **Mapping interfaces** — Interface-based projections for partial selects (only for clients with complex queries)
-3. **Repository** — Extends `CrudRepository<Entity, Long>`, `@Transactional` on interface
-4. **Converter** — Extends `ItemsConverter` or `ImageConverter`, `@Component`, provides `processItems(...)`, `filterItemsToInsert(...)`, `filterItemsToUpdate(...)`, `filterIdsToDelete(...)`
+3. **Repository** — Extends `CrudRepository<Entity, Long>`. Image clients (ciafo, soup) add `@Transactional` on the interface plus native `@Query` reads and an `update`; peeps and key-value repositories are bare `CrudRepository`s
+4. **Converter** — Extends `ItemsConverter` or `ImageConverter`, `@Component`, provides `processItems(...)` and `filterIdsToDelete(...)`; image converters (ciafo, soup) also provide `filterItemsToInsert(...)` and `filterItemsToUpdate(...)`
 5. **ApiController** — `@RestController`, serves JSON to the static site frontend
 6. **Controller** — `@Controller`, implements `ModelVisitor`, handles form POST from admin portal, returns `"redirect:/"`
 
@@ -106,7 +106,7 @@ graph TD
 
 ### Repositories
 
-- `@Transactional` on the interface level
+- `@Transactional` on the interface level (image clients ciafo and soup; the simple repositories have none)
 - Native queries (`nativeQuery = true`) with `@Query`
 - `@Cacheable` on read methods, `@CacheEvict(allEntries = true)` on the controller POST method
 - Custom `update` method using `@Modifying @Query` with SpEL (`:#{}`) for entity field access

@@ -11,13 +11,15 @@ All workflows run on a self-hosted runner (`runs-on: outsideworx`) — the same 
 
 ### Prerequisites
 
+> The tooling list below is host state, not enforced by any repo file. Verified on the host on 2026-11-16: the runner (`/root/actions-runner`, agent name `operator`, registered at org level `https://github.com/outsideworx`) lives on the same machine as the Swarm manager (`docker info`: Swarm active, control available). Installed: OpenJDK 25, Maven 3.8.7, Docker 29.1.3, Buildx 0.30.1, Git 2.43.0, Node 18.19.1 / npm 9.2.0 (host-only; the image builds use Node 22 inside Docker). The runner is not running as a systemd unit visible to `systemctl`, and no `Runner.Listener` process was up at check time, so confirm it is online in the GitHub UI. The `gh` CLI is not installed. If a build fails with a missing tool, re-check with `java -version`, `mvn -v`, `docker buildx version`, `git --version`.
+
 The runner must have the following installed and available on `PATH`:
 
 | Dependency | Used by | Purpose |
 |------------|---------|---------|
 | Java (JDK) | services verify, services build | Compiles source, runs unit + integration tests, packages the JAR |
 | Maven | services verify, services build | Orchestrates the full build lifecycle (compile → test → package) |
-| Node.js / npm | host provisioning (`deploy.sh --install`) | Installed on the host; image builds run Node inside the `node:*-alpine` Docker stage |
+| Node.js / npm | host provisioning | Not needed by any workflow: image builds run Node inside the `node:*-alpine` Docker stage |
 | Docker Engine | all builds, all deploys | Builds container images, pushes to GHCR, deploys Swarm stacks |
 | Docker Buildx | sites build, services build | Multi-stage image builds via `docker/build-push-action` |
 | Git | all workflows | Repository checkout and submodule initialization |
@@ -57,7 +59,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    main_push["Push to sites/main"] --> matrix["Matrix build\nall 8 sites"]
+    main_push["Push to sites/main"] --> matrix["Matrix build\nall sites"]
     repo_dispatch["repository_dispatch\nfrom site repo"] --> single["Build\nsingle site"]
     matrix --> ghcr["GHCR"]
     single --> ghcr
@@ -99,7 +101,7 @@ sequenceDiagram
     Note over SiteRepo,WorxRepo: static sites only (not outsideworx / tunde-divat)
     SiteRepo->>API: repository_dispatch<br/>event_type: update-submodule<br/>client_payload: { name }
     API->>WorxRepo: Trigger update-submodule job
-    WorxRepo->>WorxRepo: git submodule update --remote clients/<name><br/>commit + push (only if pointer moved)
+    WorxRepo->>WorxRepo: git submodule update --remote clients/<name><br/>commit + push (unguarded)
     WorxRepo->>API: push to main re-fires build-sites (name: outsideworx)
     API->>SitesRepo: rebuild + force-update sites_outsideworx
 ```
@@ -107,7 +109,7 @@ sequenceDiagram
 Each static site repo's workflow (`build.yaml`, no checkout, no build step) sends **two** `repository_dispatch` events on push to `main`:
 
 1. `event_type: build-sites` to the `sites` repo with `client_payload: { name: '<name>' }` (plus `type: 'npm'` for `tunde-divat`) — builds the site's own standalone image and force-updates `sites_<name>`. There is one shared event type (`build-sites`), not a per-site event. The `sites` repo selects the Dockerfile from `client_payload.type`, clones the site content at Docker build time via the `NAME` build arg, then force-updates the running Swarm service.
-2. `event_type: update-submodule` to the `outsideworx` repo with `client_payload: { name: '<name>' }` — refreshes the `/clients/<name>` mirror. The `outsideworx` repo's `build.yaml` has an `update-submodule` job (gated on `repository_dispatch`) that checks out with submodules (authenticated via `DISPATCH_TOKEN`), runs `git submodule update --remote clients/<name>`, and — only if the pointer moved — commits (as `outsideworx <info@outsideworx.net>`) and pushes. That push to `outsideworx/main` re-fires the `outsideworx` site's own push-triggered `build-sites` dispatch, rebuilding its image with the fresh submodule and force-updating `sites_outsideworx`.
+2. `event_type: update-submodule` to the `outsideworx` repo with `client_payload: { name: '<name>' }` — refreshes the `/clients/<name>` mirror. The `outsideworx` repo's `build.yaml` has an `update-submodule` job (gated on `repository_dispatch`) that checks out with submodules (authenticated via `DISPATCH_TOKEN`), runs `git submodule update --remote clients/<name>`, and commits and pushes. The step is unguarded and sets no git identity, so if the pointer did not move, `git commit` fails (harmless — nothing to deploy). That push to `outsideworx/main` re-fires the `outsideworx` site's own push-triggered `build-sites` dispatch, rebuilding its image with the fresh submodule and force-updating `sites_outsideworx`.
 
 The second dispatch is sent only by the mirrored static sites (come-in-and-find-out, duckumbrella, gaiapeeps, igli, soupart, soupkitchen). `outsideworx` itself and `tunde-divat` (npm, not mirrored) send only the `build-sites` dispatch. `thegreen` is mirror-only (no standalone image): its `build.yaml` sends **only** the `update-submodule` dispatch, so it now auto-deploys too (see `sites-wip.md`). The site repo never touches Docker directly.
 

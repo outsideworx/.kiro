@@ -2,7 +2,7 @@
 
 ## Overview
 
-The sites stack serves multiple websites, each built into its own container and routed by domain. Most sites are **static** (Apache httpd serving HTML/CSS/JS) and proxy API calls back to the services stack. Some sites are **dynamic npm apps** (Node/Express + Vite SPA with their own SQLite database) built from a separate Dockerfile.
+The sites stack serves multiple websites, each built into its own container and routed by domain. Most sites are **static** (Apache httpd serving HTML/CSS/JS) and proxy API calls back to the services stack. Some sites are **dynamic npm apps** (Node/Express + Vite SPA with their own SQLite database) built from a separate Dockerfile and run on plain Node — no Apache in the image.
 
 ## Architecture
 
@@ -21,7 +21,7 @@ The `sites` repo ships two families of Dockerfile, selected per site by a build 
 | Type | Dockerfile (prod / test) | Runtime base | Serves | Sites |
 |------|--------------------------|--------------|--------|-------|
 | (default, no type) | `Dockerfile` / `Dockerfile.test` | `httpd` (Apache) | Static content, proxies `/api/` | all static sites |
-| `npm` | `Dockerfile.npm` / `Dockerfile.npm.test` | `httpd:2.4` + Node.js (builder: `node:22-alpine`) | Its own Express API + built SPA | `tunde-divat` |
+| `npm` | `Dockerfile.npm` / `Dockerfile.npm.test` | `node:22-alpine` (fetcher: `bitnami/git`) | Its own Express API + built SPA | `tunde-divat` |
 
 The build type is passed through CI as `client_payload.type` (dispatch) or a `type` field in the build matrix (push). The workflow resolves the Dockerfile name dynamically: no type → `Dockerfile`, `npm` → `Dockerfile.npm` (see the `github-actions` prompt). Both types still take the `NAME` build arg to select which repo to clone.
 
@@ -62,7 +62,7 @@ RequestHeader set X-Request-Id "%{UNIQUE_ID}e"
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
 - `Referrer-Policy: strict-origin-when-cross-origin`
-- `Content-Security-Policy` (restrictive: no inline scripts except `unsafe-inline`, no default-src)
+- `Content-Security-Policy` (restrictive: `default-src 'none'` plus explicit per-directive allowances; `unsafe-inline` is allowed for scripts and styles — see the `httpd` skill for the full policy)
 
 #### Rate Limiting & Timeouts
 
@@ -85,6 +85,7 @@ RedirectMatch 403 ^(?!/(sitemap)\.xml$).*\.xml/?$
 RedirectMatch 301 ^/grafana/?$  https://services.outsideworx.net/grafana
 RedirectMatch 301 ^/login/?$    https://services.outsideworx.net
 RedirectMatch 301 ^/ntfy/?$     https://services.outsideworx.net/ntfy
+RedirectMatch 301 ^/vpn/?$      https://services.outsideworx.net/vpn
 ```
 
 #### Logging
@@ -111,15 +112,14 @@ The `CMD` runs a shell script that writes the `TOKEN` env var into an Apache con
 
 ## Dockerfile — npm Apps
 
-`Dockerfile.npm` (prod) and `Dockerfile.npm.test` (test) build a dynamic npm app (currently `tunde-divat`). The two are nearly identical — the **only** difference is `NODE_ENV` (`production` in prod, `development` in test). The `NAME` build arg still selects the repo to clone, so the template stays multi-site-capable for any npm app.
+`Dockerfile.npm` (prod) and `Dockerfile.npm.test` (test) build a dynamic npm app (currently `tunde-divat`). The two are identical except for `NODE_ENV` (`production` in prod, `development` in test). The `NAME` build arg still selects the repo to clone, so the template stays multi-site-capable for any npm app.
 
 ### Build Stages
 
 1. **fetcher** (`bitnami/git`) — Clones `https://github.com/outsideworx/${NAME}.git` (depth 1)
-2. **builder** (`node:22-alpine`) — `npm ci`, then `npm run build` with `VITE_API_URL=""` (the SPA calls the API on its own origin under `/api/`)
-3. **runtime** (`httpd:2.4` + `apk add --no-cache nodejs`) — Copies the built workspace to `/app`, sets `WEB_DIST_DIR=/app/apps/web/dist`, `NODE_ENV` (prod/test), and `API_PORT=80` as Dockerfile ENV, and bakes an entrypoint script at build time
+2. **runtime** (`node:22-alpine`) — Copies the cloned workspace to `/app`, runs `npm ci` and `npm run build` with `VITE_API_URL=""` (the SPA calls the API on its own origin under `/api/`), sets `WEB_DIST_DIR=/app/apps/web/dist`, `NODE_ENV` (prod/test) and `API_PORT=80` as Dockerfile ENV, and bakes an entrypoint script at build time
 
-The runtime image is Apache httpd with Node.js added on top — **not** a plain Node image. Both processes run in the container (see Entrypoint).
+There is no separate builder stage and **no Apache** in the image: it is a plain Node image, and Express is the only process (see Entrypoint). Dev dependencies stay in the final image because the build runs in it.
 
 ### Entrypoint
 
@@ -128,20 +128,19 @@ The entrypoint is written into the image at build time via `printf ... > /app/en
 ```sh
 npx prisma migrate deploy   # apply SQLite migrations
 npm run seed                # seed admin user + invite code
-node dist/server.js &       # start Express on API_PORT=80 (backgrounded)
-httpd-foreground            # run Apache in the foreground as PID 1
+exec node dist/server.js    # Express on API_PORT=80, replaces the shell as PID 1
 ```
 
-So the Express server is started in the background and Apache httpd runs in the foreground. Both share port 80 inside the container; Traefik routes to the Express server.
+The script runs under `set -e`, so a failed migration or seed stops the container instead of starting a half-initialised app. Traefik routes to the Express server on port 80.
 
 ### Runtime Characteristics
 
-- **Port**: Express listens on `API_PORT=80` (baked as a Dockerfile ENV) and serves both the API (`/api/`) and the built SPA (`WEB_DIST_DIR`). Apache httpd also runs on 80 in the same container.
-- **Apache present but minimal**: unlike the static sites, there is no `/api/` proxy to services, no `TOKEN`/`X-Auth-Token` injection, no blacklist, and no MPM/rate-limit config — all request handling for the app lives inside the Express server.
+- **Port**: Express listens on `API_PORT=80` (baked as a Dockerfile ENV) and serves both the API (`/api/`) and the built SPA (`WEB_DIST_DIR`).
+- **No Apache**: unlike the static sites, there is no `/api/` proxy to services, no `TOKEN`/`X-Auth-Token` injection, no IP blacklist, no Apache rate-limit/MPM/security-header config — all request handling for the app lives inside the Express server (response compression comes from Traefik).
 - **No `/api/` proxy to services**: the app is self-contained; it does not call the Spring Boot backend
 - **Persistence**: a SQLite DB file and uploads directory live on a named volume mounted at `/data` (`DATABASE_URL=file:/data/tunde-divat.db`, `UPLOAD_DIR=/data/uploads`)
 - **Health check**: `wget --spider http://localhost/metrics` (compose) and Traefik healthcheck path `/metrics`, both on port 80
-- **`/metrics` endpoint**: an Express route (`metricsRoutes.ts`, mounted at `/metrics`, route `/`) returning `up 1` with `Content-Type: text/plain; version=0.0.4`. Used by the Docker/Traefik health checks and scraped by Prometheus in the `sites` job (see `monitoring.md`). The explicit content type is required — Prometheus 3.x rejects `text/html`, Express's default for string bodies
+- **`/metrics` endpoint**: an Express route (`metricsRoutes.ts`, mounted at `/metrics`) returning `up 1` as `text/plain`. Used by the Docker/Traefik health checks and scraped by Prometheus in the `sites` job; the content-type requirement is explained in `monitoring.md`.
 
 See the `tunde-divat` repo's `AGENTS.md` for the app's internal architecture (Express + React + Prisma, AI image generation, auth).
 
@@ -224,12 +223,12 @@ Only static sites that call the API need a `TOKEN`. Static sites without API cal
 | `NODE_ENV` | `production` (Dockerfile ENV) | `development` (Dockerfile ENV) |
 | `AI_PROVIDER` | From `.env` (`TUNDE_DIVAT_AI_PROVIDER`) | `openai` (hardcoded) |
 | `OPENAI_API_KEY` | From `.env` (`TUNDE_DIVAT_OPENAI_API_KEY`) | `""` (empty) |
-| `CORS_ORIGIN` | `https://tundedivat.com` | `https://tunde-divat.localhost` |
+| `CORS_ORIGIN` | `https://tundedivat.com` | `https://tundedivat.localhost` |
 | Seed vars | From `.env` (`TUNDE_DIVAT_SEED_*`) | Hardcoded test values |
 | `SESSION_SECRET` | From `.env` (`TUNDE_DIVAT_SESSION_SECRET`) | Hardcoded 32+ char test string |
 | Volume | Named volume `tunde-divat` → `/data` | Ephemeral (compose-managed) |
 | Network | `edge` (see `networking.md`) | External `services_default` |
-| Domain | `tundedivat.com` (no `www.` redirect) | `tunde-divat.localhost` |
+| Domain | `tundedivat.com` (no `www.` redirect) | `tundedivat.localhost` |
 | Health check | `/metrics` on port 80, interval 1m | `/metrics` on port 80, interval 5s |
 | Metrics endpoint | `/metrics` returns `up 1` | `/metrics` returns `up 1` |
 | Port | Exposes port 80 directly | Exposes port 80 directly |
@@ -256,7 +255,7 @@ Two distinct deployment paths exist:
 | soupkitchen | soupkitchen.info | static | No | `edge` | — |
 | tunde-divat | tundedivat.com | npm | No (self-contained) | `edge` | Named volume `tunde-divat` → `/data` (SQLite + uploads) |
 
-The three sites with no API token and no `services_cache` mount (`duckumbrella`, `igli`, `soupkitchen`) sit on the `edge` overlay instead of `outsideworx` — they never call the Spring Boot backend, so they have no reason to join `outsideworx`; Traefik still reaches them because it joins both networks. See `networking.md` for the full rationale and per-service breakdown. `tunde-divat` is on `edge` for the same reason (self-contained, no backend calls).
+The sites with no API token and no `services_cache` mount (`duckumbrella`, `igli`, `soupkitchen`) sit on the `edge` overlay instead of `outsideworx` — they never call the Spring Boot backend, so they have no reason to join `outsideworx`; Traefik still reaches them because it joins both networks. See `networking.md` for the full rationale and per-service breakdown. `tunde-divat` is on `edge` for the same reason (self-contained, no backend calls).
 
 The cache volume is a Docker named volume (`services_cache`, external — created by the services stack's `utils` container as `cache`). Static sites that serve cached images (`come-in-and-find-out`, `soupart`) mount the whole volume read-only at `/htdocs/cache` (not a per-client subdirectory). In test, both sites share the same named volume mounted at `/htdocs/cache`. The `tunde-divat` volume is a separate Docker named volume holding the app's own SQLite database and uploaded images — not a cache of the services DB.
 
@@ -294,7 +293,7 @@ outsideworx repo
 
 At Docker build time the `outsideworx` image's `fetcher` stage clones the `outsideworx` repo and runs `git submodule update --init --depth 1`, so every submodule's content is checked out into `/usr/local/apache2/htdocs/clients/<name>/`. Apache's `MultiViews` + `DirectoryIndex` on `htdocs/clients/` then serve each site at `outsideworx.net/clients/<name>`. Submodule URLs in `.gitmodules` are HTTPS (`https://github.com/outsideworx/<name>.git`) so the anonymous build clone can initialize them without SSH credentials.
 
-Every static site repo's push triggers an automatic submodule refresh: alongside the `build-sites` dispatch that rebuilds its own standalone image, the site repo also sends an `update-submodule` dispatch to the `outsideworx` repo. (`thegreen`, which has no standalone image, sends **only** the `update-submodule` dispatch.) That workflow checks out `outsideworx` (with submodules, authenticated via `DISPATCH_TOKEN`), runs `git submodule update --remote clients/<name>`, and — only if the pointer actually moved — commits (as `outsideworx <info@outsideworx.net>`) and pushes. The push to `outsideworx/main` then re-triggers the `outsideworx` site's own build-and-deploy (its push-triggered `build-sites` dispatch), rebuilding the image with the fresh submodule and force-updating `sites_outsideworx`. So every mirror — including `thegreen` — now auto-deploys in step with its site repo; no manual pointer bump is needed (see `sites-wip.md` for the manual fallback). Unlike `thegreen`, these mirrors are **not** secret-gated (`CLIENT_SECRET_PATH` covers only `/clients/thegreen/`), so they are publicly reachable.
+Every static site repo's push triggers an automatic submodule refresh: alongside the `build-sites` dispatch that rebuilds its own standalone image, the site repo also sends an `update-submodule` dispatch to the `outsideworx` repo. (`thegreen`, which has no standalone image, sends **only** the `update-submodule` dispatch.) That workflow checks out `outsideworx` (with submodules, authenticated via `DISPATCH_TOKEN`), runs `git submodule update --remote clients/<name>`, and commits and pushes (`<name>: submodule update`). The step is unguarded: it runs `git add/commit/push` unconditionally and sets no git identity, so if the pointer did not move, `git commit` finds nothing to commit and the job fails (harmless — nothing to deploy). The push to `outsideworx/main` then re-triggers the `outsideworx` site's own build-and-deploy (its push-triggered `build-sites` dispatch), rebuilding the image with the fresh submodule and force-updating `sites_outsideworx`. So every mirror — including `thegreen` — now auto-deploys in step with its site repo; no manual pointer bump is needed (see `sites-wip.md` for the manual fallback). Unlike `thegreen`, these mirrors are **not** secret-gated (`CLIENT_SECRET_PATH` covers only `/clients/thegreen/`), so they are publicly reachable.
 
 ## File Layout
 
@@ -310,7 +309,7 @@ sites/
 ├── compose-test.yaml       # Local dev (builds from Dockerfile.test)
 ├── Dockerfile              # Prod multi-site static image (Apache)
 ├── Dockerfile.test         # Test static variant (different proxy, relaxed limits)
-├── Dockerfile.npm          # Prod npm-app image (tunde-divat: Node/Express + Vite SPA)
+├── Dockerfile.npm          # Prod npm-app image (tunde-divat: plain Node/Express + Vite SPA)
 ├── Dockerfile.npm.test     # Test npm-app variant
 └── secret.lua.tpl          # Client secret Lua template
 ```

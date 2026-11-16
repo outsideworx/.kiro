@@ -19,7 +19,6 @@ The deployment script handles both initial setup and updates.
 
 | Flag | Action |
 |------|--------|
-| `--install` | Installs `docker-compose-v2`, `git`, `maven`, `npm`, `openjdk-25-jdk` via apt |
 | `--host <user@server>` | Remote execution: copies the script to `~/` on the target via `scp` and runs it there over `ssh`. Must be the first parameter and may only be followed by `--network` (e.g. `--host user@server --network <IP>`); any other combination is rejected, since `--secrets` must run on the Swarm manager it targets and the plain deployment needs the repo's config files and `.env` |
 | `--network` | Initializes Swarm (`docker swarm init --advertise-addr <IP>`; skipped with a warning when no IP is given), creates each missing overlay network (`edge`, `outsideworx`; existing ones are left alone, so it is safe to re-run after a prune removed one), and loads the iptables kernel modules wg-easy needs (`/etc/modules-load.d/wg-easy.conf`) |
 | `--secrets` | Generates `wg_metrics_token` (printed once — must be entered in the wg-easy admin UI) and the RSA 4096 key, stores both as Docker secrets |
@@ -30,7 +29,7 @@ The deployment script handles both initial setup and updates.
 1. Sources `.env` file
 2. Computes SHA256 hashes of config files (for Swarm config naming)
 3. Builds `utils.tar` from the `utils/` scripts (see "The `utils` Config Tarball") and hashes it
-4. `docker compose pull`
+4. `docker login ghcr.io` (user `outsideworx`, password `$DISPATCH_TOKEN`), then `docker compose pull`
 5. `docker stack deploy -c compose.yaml services --detach=false --resolve-image=always`
 6. Force-updates all services (rolling restart)
 
@@ -183,7 +182,7 @@ All variables required for the services stack:
 | `AUTHELIA_JWT_SECRET` | authelia | JWT signing secret |
 | `AUTHELIA_SESSION_SECRET` | authelia | Session encryption secret |
 | `AUTHELIA_STORAGE_ENCRYPTION_KEY` | authelia | Storage encryption key |
-| `DISPATCH_TOKEN` | CI/CD | GitHub PAT (not used at runtime, kept for reference) |
+| `DISPATCH_TOKEN` | deploy.sh | GitHub PAT; used for the `docker login ghcr.io` before `docker compose pull` (not used by running services) |
 | `GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET` | grafana | Grafana's OIDC client secret |
 | `GF_SECURITY_ADMIN_PASSWORD` | grafana | Grafana admin password |
 | `GF_SECURITY_ADMIN_USER` | grafana | Grafana admin username |

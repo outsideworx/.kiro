@@ -1,6 +1,6 @@
 ---
 name: seo
-description: SEO and health-check conventions for static site repos — robots.txt (Disallow-all + Allow whitelist), sitemap.xml (single extensionless loc URL), metrics.txt (Prometheus health check, "up 1"), and HTML meta tag rules (description, author, robots, viewport ordering) for content pages, splash/orientation pages, and WIP submodule sites. Does not apply to the tunde-divat npm app. Use when creating a new site repo or modifying robots.txt, sitemap.xml, metrics.txt, or page meta tags.
+description: SEO and health-check conventions for static site repos: robots.txt (Disallow-all + Allow whitelist), sitemap.xml (loc, lastmod), metrics.txt ('up 1'), and the HTML meta tags (description, author, robots) for content, splash and WIP pages. Use when creating a site repo or touching robots.txt, sitemap.xml, metrics.txt, meta tags, crawling or indexing. Not for the tunde-divat npm app.
 ---
 
 # SEO
@@ -102,10 +102,8 @@ Static health check file used by Prometheus for site-level scraping.
 up 1
 ```
 
-- Exact content: `up 1` (no trailing newline beyond the standard file-ending newline)
-- Located at the site root
-- Excluded from Apache access log via `SetEnvIf Request_URI "^/metrics$" no_log`
-- Blocked from public access by URL blocking rules — except the explicit allowance: `RedirectMatch 403 ^(?!/(metrics|robots)\.txt$).*\.txt/?$`
+- Exact content: `up 1` (no trailing newline beyond the standard file-ending newline), at the site root
+- Apache serves it as `/metrics`, keeps it out of the access log and exempts it from the `.txt` 403 block; that behaviour is described in `sites-deployment.md` (change it via the `httpd` skill)
 
 ## HTML Meta Tags
 
@@ -173,6 +171,10 @@ WIP sites hosted as submodules under `outsideworx.net/clients/<name>/`:
 - `sitemap.xml` loc uses the parent domain + subpath
 - Relative paths in HTML (`../favicon.ico`, `../style/`, `../script/`) since pages are nested
 - No separate compose entry — shares the `outsideworx` container
+
+## Validation
+
+Run `python3 scripts/check_seo.py <site-repo-dir>` (path relative to this skill) after creating or editing the files. It prints JSON listing any deviations from the rules above (read-only).
 
 ## Checklist
 

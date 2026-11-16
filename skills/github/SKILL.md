@@ -1,6 +1,6 @@
 ---
 name: github
-description: GitHub repository and CI/CD setup — creating a new site repo, repository settings and branch protection, build/verify/deploy workflow templates, repository_dispatch wiring (build-sites, update-submodule), registering or removing a site from the build pipeline, and self-hosted runner prerequisites. Use when creating a repo, adding or removing a site from CI, or configuring GitHub Actions workflows.
+description: GitHub repo and CI/CD setup: create a site repo, repo settings and branch protection, build/verify/deploy.yaml workflow templates, repository_dispatch wiring (build-sites, update-submodule, the Dockerfile.npm type payload), and adding or removing a site from the build pipeline. Use whenever the user mentions a new repo, GitHub Actions, workflows, dispatch, branch protection, or why a push didn't build or deploy. Compose/Prometheus wiring belongs to new-site.
 ---
 
 # GitHub
@@ -11,9 +11,11 @@ Procedural guide for GitHub-related tasks: creating repos, wiring dispatch workf
 
 For the current state of all pipelines and their full configs, see the `github-actions` prompt.
 
-All workflows run on a self-hosted runner — the runner is the production server itself. The runner must have Java, Maven, Docker Engine, Docker Buildx, and Git pre-installed — see the `github-actions` prompt "Self-Hosted Runner" section for the full prerequisites table.
+Every workflow uses `runs-on: outsideworx`, the self-hosted runner that is also the production server (tooling is pre-installed, so no `setup-*` actions). Runner details are in the `github-actions` prompt.
 
 ## Repository Settings
+
+> **Not verifiable from the repo.** Everything under this heading (repo settings, merge options, branch protection) is GitHub-side state recorded by hand; no file in any repo enforces or checks it, and the `gh` CLI was not available to confirm it. Treat it as the intended configuration and confirm in the GitHub UI (or `gh api repos/outsideworx/<repo>/branches/main/protection`) before relying on a detail.
 
 ### General
 
@@ -161,11 +163,11 @@ Add this as a second step (or a second `createDispatchEvent` call within the sam
 - `tunde-divat` or any npm app (npm apps are not mirrored — they are self-contained dynamic apps, not static content)
 - `thegreen` (WIP submodule-only site) — it sends **only** the `update-submodule` dispatch, no `build-sites` (it has no standalone image)
 
-The `outsideworx` repo's own `build.yaml` has a matching `update-submodule` job (gated on `repository_dispatch`) that bumps the submodule pointer, commits, and pushes — which re-triggers the `outsideworx` site's own build. See the `github-actions` prompt's "Site Repo Dispatch" sequence diagram for the full flow.
+The receiving `update-submodule` job already exists in the `outsideworx` repo; see "Site Repo Dispatch" in the `github-actions` prompt for the flow.
 
 ### 3. Register in the Sites Build Pipeline
 
-Delegate to the `new-site` skill — it owns compose, build matrix, and Prometheus wiring (see its "Infrastructure Wiring" section).
+Delegate to the `new-site` skill — it owns compose, build matrix, and Prometheus wiring (see its `references/infra-wiring.md`).
 
 ### 4. Verify
 
@@ -173,7 +175,7 @@ Push the initial commit to `main`. Confirm:
 - The site repo's dispatch workflow runs
 - The sites repo's `build` job triggers via `repository_dispatch`
 - The image appears at `ghcr.io/outsideworx/<site-name>:latest`
-- The `build` job's final step force-updates the running service (`sites_<site-name>`) — the change goes live automatically (no manual deploy needed)
+- The `build` job finishes by force-updating `sites_<site-name>`, so the change goes live without a manual deploy
 
 ## How to Add a Deploy Workflow
 
@@ -249,6 +251,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          no-cache: true
           push: true
           tags: ghcr.io/outsideworx/<repo-name>:latest
 ```
@@ -268,5 +271,5 @@ Commits whose message starts with `DOC:` skip both workflows (see `github-action
 
 - GHCR login uses `DISPATCH_TOKEN` as password and `github.actor` as username
 - All images tagged `:latest` only (no semver, no SHA tags)
-- Site content changes auto-deploy: a push to a site repo dispatches the `build` job, which force-updates the running Swarm service (`docker service update --force sites_<name>`) after pushing the image. Only stack-level changes (compose, `.env`, adding/removing services) need the manual `deploy.yaml`. The matrix `build-sites` job (push to `sites/main`) rebuilds all images to GHCR but does **not** update running services.
+- What auto-deploys and what needs the manual `deploy.yaml` is described in `github-actions.md` and `sites-deployment.md` (CI/CD section). Never run the deploy yourself (see `ways-of-working`).
 - YAML ordering rules are in the `coding-conventions` steering doc

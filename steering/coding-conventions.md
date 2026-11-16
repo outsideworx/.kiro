@@ -16,7 +16,7 @@ Stronger ordering rules:
 ### Class-Level
 
 - All concrete classes are `final`
-- Exception: `@Configuration` and `@ConfigurationProperties` classes are not `final` (CGLIB proxying requires subclassing)
+- Exception: classes Spring proxies via CGLIB are not `final`, because the proxy subclasses them: `@Configuration`, `@ConfigurationProperties`, and any bean with proxy-based annotations on its methods (`@CacheEvict`, `@Cacheable`, `@Transactional`, `@Async`). A `final` class like that fails at startup
 - Visibility: package-private by default (controllers, filters); `public` only when required cross-package (converters, gateways, entities, repositories, interfaces)
 - Annotations on classes: alphabetical (e.g., `@Component`, `@Order`, `@RequiredArgsConstructor`, `@Slf4j`)
 - No blank lines between annotations on the same element

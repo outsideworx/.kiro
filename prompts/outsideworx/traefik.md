@@ -5,7 +5,7 @@
 Traefik v3 is the single entry point for all HTTP/HTTPS traffic. It handles TLS termination, routing, and service discovery via Docker labels.
 
 - Image: `traefik`
-- Ports: 80 (HTTP), 443 (HTTPS), 81 (Traefik dashboard/metrics)
+- Ports: 80 (HTTP), 443 (HTTPS), 81 (Prometheus metrics and `/ping`; no dashboard)
 - Network: `outsideworx` and `edge` overlays (Traefik joins both — see `networking.md`)
 
 ## Entrypoints
@@ -14,7 +14,7 @@ Traefik v3 is the single entry point for all HTTP/HTTPS traffic. It handles TLS 
 |------|------|---------|
 | `web` | 80 | HTTP — auto-redirects to `websecure` |
 | `websecure` | 443 | HTTPS — all application traffic |
-| `traefik` | 81 | Internal dashboard and Prometheus metrics |
+| `traefik` | 81 | Prometheus metrics and `/ping` (no dashboard) |
 
 ## TLS / Certificates
 
@@ -61,8 +61,9 @@ Every routed service needs these labels:
 - traefik.http.routers.<name>.entrypoints=websecure
 - traefik.http.routers.<name>.rule=Host(`<name>.localhost`)
 - traefik.http.routers.<name>.tls=true
-- traefik.http.services.<name>.loadbalancer.server.port=80
 ```
+
+In prod the `server.port` label is always set. In the sites test compose it is omitted (Traefik falls back to the container's single exposed port); add it for any test service that exposes more than one port.
 
 ### Optional Labels
 
@@ -83,7 +84,7 @@ Currently defined:
 - traefik.http.middlewares.www-redirect.redirectregex.replacement=https://$${1}
 ```
 
-Both are defined once, on the `outsideworx` site service's labels in `sites/compose.yaml` (`compose-test.yaml` defines only `compress`), and referenced as `<name>@swarm` / `<name>` from every router. `includedContentTypes` keeps Traefik from recompressing images/video; already-encoded responses are passed through. Compression is applied in Traefik rather than Apache (`mod_deflate` is not enabled) so it also covers the Express app.
+Both are defined once, on the `outsideworx` site service's labels in `sites/compose.yaml` (`compose-test.yaml` defines and uses none), and referenced by plain name (e.g. `middlewares=compress,www-redirect`) from every prod router. `includedContentTypes` keeps Traefik from recompressing images/video; already-encoded responses are passed through. Compression is applied in Traefik rather than Apache (`mod_deflate` is not enabled) so it also covers the Express app.
 
 ## Routing Map
 

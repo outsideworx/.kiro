@@ -1,6 +1,6 @@
 ---
 name: admin-portal
-description: Admin portal conventions — Thymeleaf templates (simple table layout vs. accordion with image uploads), ModelVisitor controller pattern, the IndexController email-domain dispatch mechanism, items[n].field form data convention, delete-checkbox/hidden-id handling, and JS patterns (addRow, submit spinner, file upload validation/preview). Use when creating or modifying a client's admin view, or debugging why a client's portal doesn't render after login.
+description: Admin portal conventions: Thymeleaf templates (table vs accordion with image uploads, header bar), ModelVisitor controllers, items[n].field forms, delete checkboxes, and JS patterns (addRow, submit spinner, upload preview). Use when creating or changing a client's admin view, or debugging access denied or a missing portal after login, or which view IndexController picks.
 ---
 
 # Admin Portal
@@ -11,14 +11,12 @@ The admin portal is an OAuth2-protected web UI where clients manage their conten
 
 ## Dispatch Mechanism
 
-`IndexController` extracts the domain from the user's email via regex (`(?<=@)[^.]+(?=\\.)`), prepends `clients/`, and finds the matching `ModelVisitor`:
+`IndexController` maps the logged-in user's email domain to a view name and finds the matching `ModelVisitor` (regex and `AccessDeniedException` behaviour: `auth.md`, "Portal Routing Logic"):
 
 ```
 info@come-in-and-find-out.ch  →  domain: come-in-and-find-out  →  view: clients/come-in-and-find-out
 info@gaiapeeps.com            →  domain: gaiapeeps             →  view: clients/gaiapeeps
 ```
-
-If no `ModelVisitor` returns a matching view name, `AccessDeniedException` is thrown.
 
 ## ModelVisitor Interface
 
@@ -36,11 +34,13 @@ Every client admin controller implements this. The `getModel()` method returns a
 
 ### Simple (no images, no cache)
 
+No proxy annotations, so the class is `final` (see `coding-conventions`; the existing `PeepsController` and `OutsideworxController` are not yet).
+
 ```java
 @Controller
 @RequiredArgsConstructor
 @Slf4j
-class <Name>Controller implements ModelVisitor {
+final class <Name>Controller implements ModelVisitor {
     private final <Name>Converter <name>Converter;
 
     private final <Name>Repository <name>Repository;
@@ -64,6 +64,8 @@ class <Name>Controller implements ModelVisitor {
 ```
 
 ### Complex (images, cache, categories)
+
+Not `final`, because `@CacheEvict` makes Spring proxy the class (rule in `coding-conventions`).
 
 ```java
 @Controller
@@ -99,12 +101,14 @@ class <Name>Controller implements ModelVisitor {
 }
 ```
 
+The repository method per category depends on the client: soup uses the full entity (`<name>Repository::get`), while come-in-and-find-out uses the `CiafoThumbnails` projection (`ciafoRepository::getThumbnails`, `Map<String, List<CiafoThumbnails>>`) so full-size images are not loaded for the list.
+
 ## Template Structure
 
 All templates use:
 - Bootstrap 5 CSS + Icons (CDN)
 - `xmlns:th="http://www.thymeleaf.org"`
-- Title image (`/img/clients/<name>.webp`)
+- Title image (`/img/clients/<name>.webp`; the `outsideworx` portal has none)
 - Header bar with: Save button, New item button, Grafana link, ntfy link, Logout button
 - `items[n].field` form naming convention
 
@@ -162,7 +166,7 @@ Used when items are grouped by category and have image uploads.
 - Fields: `items[0].title`, `items[0].link`, `items[1].title`, etc.
 - Delete checkbox: `items[n].delete` (value `"on"` when checked)
 - Hidden ID: `items[n].id` (preserves existing item identity)
-- File uploads: `items[n].image`, `items[n].thumbnail` as `MultipartFile`
+- File uploads: `items[n].image` / `items[n].thumbnail` (soupart) or `items[n].image1`…`image4` (come-in-and-find-out; thumbnails are derived server-side) as `MultipartFile`
 
 ## JavaScript Patterns
 
@@ -235,7 +239,7 @@ Shared across all client templates:
 When creating a new admin portal view:
 
 1. Create template at `templates/clients/<domain-prefix>.html`
-2. Create controller implementing `ModelVisitor` in `controllers/clients/<name>/`
+2. Create controller implementing `ModelVisitor` in `controllers/clients/<name>/` (soup's lives in `controllers/clients/soupart/ciafo/`; follow the neighbouring package for a similar client)
 3. Ensure the view name in `ModelAndView` matches `clients/<domain-prefix>`
 4. Add title image at `src/main/resources/static/img/clients/<name>.webp`
 5. The `IndexController` auto-discovers the new `ModelVisitor` via Spring's `List<ModelVisitor>` injection

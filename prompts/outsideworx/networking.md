@@ -51,7 +51,7 @@ Each service joins exactly one of the two networks (`traefik` and `prometheus` a
 
 ### Why `duckumbrella` / `igli` / `soupkitchen` Moved to `edge`
 
-These are the three static sites with **no** API token and **no** `services_cache` mount (see the sites table in `sites-deployment.md`) — they never need to reach `services_services`, so they have no reason to sit on `outsideworx`. Traefik still routes to them because Traefik itself joins both `edge` and `outsideworx`. The other four static sites (`come-in-and-find-out`, `gaiapeeps`, `outsideworx`, `soupart`) stay on `outsideworx` because they call the API (directly or, for `outsideworx`, as the mirror proxy for ciafo/peeps/soup) or mount `services_cache`.
+These are the static sites with **no** API token and **no** `services_cache` mount (see the sites table in `sites-deployment.md`) — they never need to reach `services_services`, so they have no reason to sit on `outsideworx`. Traefik still routes to them because Traefik itself joins both `edge` and `outsideworx`. The other static sites (`come-in-and-find-out`, `gaiapeeps`, `outsideworx`, `soupart`) stay on `outsideworx` because they call the API (directly or, for `outsideworx`, as the mirror proxy for ciafo/peeps/soup) or mount `services_cache`.
 
 ### Why Prometheus and Traefik Are on `edge`
 
@@ -196,10 +196,10 @@ graph TB
 
 ### Reading the Graph
 
-- **Traefik** is the single ingress point. It terminates TLS and routes to all labeled backend services based on the `Host` header: 4 in the services stack (authelia, grafana, ntfy, services) and all sites in the sites stack (each on its own domain). npm apps are also routed here, to port `80` (their Express server).
-- **Sites → services** is an internal connection (Apache `ProxyPass`), not routed through Traefik. The 4 sites provisioned with API tokens (come-in-and-find-out, gaiapeeps, soupart, outsideworx) make these calls. `outsideworx` uses its token when serving the `/clients/<name>` mirror instances of come-in-and-find-out, gaiapeeps, and soupart — their frontend JS calls `/api/`, which the `outsideworx` Apache proxies with `X-Caller-Id: outsideworx`. npm apps make **no** such call — they are self-contained (own Express API + SQLite), never reaching the Spring Boot backend or PostgreSQL.
+- **Traefik** is the single ingress point. It terminates TLS and routes to all labeled backend services based on the `Host` header: the services-stack apps (authelia, grafana, ntfy, services, wg-easy) and all sites in the sites stack (each on its own domain). npm apps are also routed here, to port `80` (their Express server).
+- **Sites → services** is an internal connection (Apache `ProxyPass`), not routed through Traefik. The sites provisioned with API tokens (come-in-and-find-out, gaiapeeps, soupart, outsideworx) make these calls. `outsideworx` uses its token when serving the `/clients/<name>` mirror instances of come-in-and-find-out, gaiapeeps, and soupart — their frontend JS calls `/api/`, which the `outsideworx` Apache proxies with `X-Caller-Id: outsideworx`. npm apps make **no** such call — they are self-contained (own Express API + SQLite), never reaching the Spring Boot backend or PostgreSQL.
 - **Grafana → authelia** is also internal (OIDC token exchange), not through Traefik.
-- **Prometheus** scrapes every service that exposes metrics (prod): services_authelia:81, services_loki:80, services_ntfy:81, services_postgres-exporter:80, services_promtail:80, services-services:81 (alias), services_traefik:81, and all 8 sites on :80 (7 static + `tunde-divat`). In test, come-in-and-find-out, gaiapeeps, soupart and tunde-divat are targeted (see `monitoring.md`). The npm app's `/metrics` returns the same `up 1` health line as the static sites, served as `text/plain`.
+- **Prometheus** scrapes every service that exposes metrics (prod): services_authelia:81, services_loki:80, services_ntfy:81, services_postgres-exporter:80, services_promtail:80, services-services:81 (alias), services_traefik:81, and every site on :80 (static sites and `tunde-divat`). In test, come-in-and-find-out, gaiapeeps, soupart and tunde-divat are targeted (see `monitoring.md`). The npm app's `/metrics` is the same health-only line as the static sites (see `monitoring.md`).
 - **Promtail** runs in global mode (one instance per Swarm node) and pushes logs from all containers to Loki.
 
 ## Detailed Communication Paths
@@ -218,7 +218,7 @@ graph TB
 | prometheus | services_promtail | HTTP :80 | Metrics scrape |
 | prometheus | services-services (alias) | HTTP :81 | Metrics scrape (actuator) |
 | prometheus | services_traefik | HTTP :81 | Metrics scrape |
-| prometheus | sites_* | HTTP :80 | Metrics scrape (all 8 sites, incl. tunde-divat) |
+| prometheus | sites_* | HTTP :80 | Metrics scrape (every site, incl. tunde-divat) |
 | promtail | services_loki | HTTP :80 | Log push (`/loki/api/v1/push`) |
 | postgres-exporter | services_postgres | PostgreSQL :5432 | DB metrics |
 | utils (cache.py) | services_postgres | PostgreSQL :5432 | Image sync |
@@ -263,4 +263,4 @@ graph TB
 2. **Never use `services_` prefix in test configs** — always short container names
 3. **Only add network aliases when Java/Spring Boot is involved** — outbound (`authelia`, `postgres`) or inbound (`services` itself)
 4. **Aliases are task-scoped** — they only resolve on the node where the container's task runs, not across the Swarm. This means `authelia`, `postgres`, and `services` must all run on the same node — the Spring Boot app uses aliases to reach them, and those aliases won't resolve if the targets are scheduled on a different machine.
-5. **Two flat overlay networks, no per-service networks** — `outsideworx` for backend-connected services, `edge` for Traefik/Prometheus/wg-easy and the three backend-free static sites. A service picks exactly one network unless it needs to straddle both (currently only `traefik` and `prometheus`).
+5. **Two flat overlay networks, no per-service networks** — `outsideworx` for backend-connected services, `edge` for Traefik/Prometheus/wg-easy and the backend-free static sites. A service picks exactly one network unless it needs to straddle both (currently only `traefik` and `prometheus`).

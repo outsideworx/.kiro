@@ -1,13 +1,13 @@
 ---
 name: httpd
-description: Apache httpd configuration conventions for the sites Dockerfile — proxy config (ProxyPass to services), security/response headers (CSP, X-Frame-Options, nosniff), RemoteIP/Traefik trust ranges, rate limiting and MPM timeouts, URL blocking (RedirectMatch 403) and convenience redirects, log format, MultiViews directory options, module enabling, and the entrypoint script (TOKEN injection, client-secret Lua auth). Use when modifying the shared Dockerfile, adding security headers, changing proxy config, or adjusting rate limits.
+description: Apache httpd conventions for the shared sites Dockerfile: proxy to services, response headers (CSP, Permissions-Policy, X-Frame-Options), RemoteIP/Traefik trust, rate limits, output limits and timeouts, RedirectMatch 403 blocks, redirects, modules, entrypoint (TOKEN). Use whenever the user wants to change Apache behaviour for the sites — add a header, loosen the CSP for fonts or a CDN, block a file type like .bak, raise a rate limit or timeout, add a redirect, enable a module — even if they never say 'httpd'.
 ---
 
 # Apache httpd — Sites Configuration
 
 ## Overview
 
-All sites share a single `Dockerfile` (prod) and `Dockerfile.test` (test). Apache config is generated inline via `RUN cat <<'EOF'` blocks — there are no external `.conf` files checked into the repo (except `blacklist.conf`).
+All sites share a single `Dockerfile` (prod) and `Dockerfile.test` (test). Apache config is generated inline via `RUN cat <<'EOF'` blocks — there are no external `.conf` files checked into the repo (except `blacklist.conf` and `blacklist-test.conf`).
 
 For the current configuration values (modules, headers, rate limits, timeouts, URL blocking, redirects, prod vs test differences), see `sites-deployment.md`.
 
@@ -17,14 +17,14 @@ Includes appended to `httpd.conf` via `sed -e '$aInclude ...'`:
 
 | File | Purpose |
 |------|---------|
-| `conf/extra/blacklist.conf` | IP deny rules (prod: real IPs, test: placeholder) |
-| `conf/extra/httpd-auth.conf` | Client secret Lua auth (prod only, created by entrypoint) |
+| `conf/extra/blacklist.conf` (prod) / `conf/extra/blacklist-test.conf` (test) | IP deny rules (prod: real IPs, test: placeholder) |
+| `conf/extra/httpd-auth.conf` | Client secret Lua auth (created by the entrypoint; `# No auth` when unset) |
 | `conf/extra/httpd-logs.conf` | Log format and output |
 | `conf/extra/httpd-token.conf` | TOKEN env var injection (prod only, created by entrypoint) |
 | `conf/extra/httpd-proxy.conf` | Proxy, MPM, rate limit, headers, redirects, directory options |
 | `conf/extra/httpd-remoteip.conf` | RemoteIP trusted proxy ranges |
 
-## Entrypoint (prod only)
+## Entrypoint
 
 ```sh
 #!/bin/sh
@@ -46,7 +46,7 @@ exec httpd-foreground
 
 - `TOKEN` is always written (defaults to `none` if unset) — uses Apache `Define` directive
 - Client secret auth is conditionally configured (see `sites-wip.md`)
-- Test Dockerfile has its own simpler entrypoint (no `httpd-token.conf`, hardcodes `"test"` in proxy conf)
+- The test Dockerfile's entrypoint is identical except it does not write `httpd-token.conf` (the proxy conf hardcodes `"test"`); the client-secret Lua logic and `httpd-auth.conf` exist in both
 
 ## Enabling a Module
 
@@ -54,36 +54,24 @@ Modules are uncommented via `sed` in the Dockerfile:
 
 ```dockerfile
 RUN sed -i \
-    -e 's/^#LoadModule headers_module/LoadModule headers_module/' \
-    -e 's/^#LoadModule lua_module/LoadModule lua_module/' \
+    -e 's|#LoadModule headers_module modules/mod_headers.so|LoadModule headers_module modules/mod_headers.so|' \
+    -e 's|#LoadModule lua_module modules/mod_lua.so|LoadModule lua_module modules/mod_lua.so|' \
     conf/httpd.conf
 ```
 
 To add a new module, append another `-e` line to this `sed` block (alphabetical order).
 
-## Proxy Configuration
+## Proxy Target
 
-```apache
-ProxyRequests Off
-ProxyPreserveHost On
-ProxyPass        "/api/"  "http://services_services/api/"      # prod
-ProxyPass        "/api/"  "http://host.docker.internal:8080/api/"  # test
-ProxyPassReverse "/api/"  "<same as ProxyPass>"
-```
+Prod and test differ only in the `ProxyPass`/`ProxyPassReverse` target (`http://services_services/api/` vs `http://host.docker.internal:8080/api/`); see `sites-deployment.md` for the current values. Change both Dockerfiles together.
 
 ## Response Headers
 
-```apache
-Header always set X-Request-Id "%{UNIQUE_ID}e"
-Header always set X-Content-Type-Options "nosniff"
-Header always set X-Frame-Options "DENY"
-Header always set Referrer-Policy "strict-origin-when-cross-origin"
-Header always set Content-Security-Policy "..."
-```
-
-To add a new response header, append to this block in `httpd-proxy.conf` (alphabetical by header name after `X-Request-Id`).
+Headers are `Header always set <Name> "<value>"` lines in `httpd-proxy.conf`. To add one, append a line there (alphabetical by header name after `X-Request-Id`) in both Dockerfiles. The current list is in `sites-deployment.md`.
 
 ### Content-Security-Policy
+
+Before loosening anything, check the table below: `font-src`, `frame-src`, `media-src` already allow any `https:` origin and `script-src`/`style-src` allow any origin, so a blocked font or embed from an https CDN usually has another cause (`data:` fonts, `connect-src 'self'` for fetch/XHR, a missing CORS header on the CDN, or a stale image). Ask for the console error before editing. Edit both `Dockerfile` and `Dockerfile.test`.
 
 ```
 base-uri        'none'
@@ -108,34 +96,9 @@ RemoteIPTrustedProxy 172.16.0.0/12
 RemoteIPTrustedProxy 192.168.0.0/16
 ```
 
-## Logging
+## Logging and Directory Options
 
-All default Apache log directives are stripped via `find`/`sed`, then replaced:
-
-```apache
-ErrorLogFormat "ERROR %P --- ip=%a requestId=%{UNIQUE_ID}e: %M"
-ErrorLog /proc/self/fd/2
-LogFormat "INFO %P --- ip=%a requestId=%{UNIQUE_ID}e: %r %>s" log_format
-SetEnvIf Request_URI "^/metrics$" no_log
-CustomLog /proc/self/fd/1 log_format env=!no_log
-```
-
-- Logs go to stdout/stderr (Docker captures them)
-- `/metrics` requests excluded from access log
-
-## Directory Options
-
-```apache
-<Directory "/usr/local/apache2/htdocs">
-    Options +MultiViews
-</Directory>
-<Directory "/usr/local/apache2/htdocs/clients">
-    Options +MultiViews
-    DirectoryIndex index.html
-</Directory>
-```
-
-MultiViews enables extensionless URL serving (content negotiation).
+Log format, the `/metrics` log exclusion and the `MultiViews` directory options are listed in `sites-deployment.md`. They live in `httpd-logs.conf` and `httpd-proxy.conf`; change them in both Dockerfiles.
 
 ## Adding a URL Block Rule
 

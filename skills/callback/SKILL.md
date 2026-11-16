@@ -1,6 +1,6 @@
 ---
 name: callback
-description: Contact form callback system (visitor submits contact info → email sent via EmailGateway/MailerSend → persisted to the CALLBACK table even if email fails). Covers CallbackController, Callback DTO, CORS origin restriction per client, and the frontend modal/jQuery POST pattern. Use when adding callback functionality to a new client or modifying the existing callback flow.
+description: Contact form callback system: a visitor leaves contact info about a product, an 'someone is interested' notification email goes out via EmailGateway/MailerSend, and the callback is persisted to the CALLBACK table even if the email fails. Covers CallbackController, the Callback DTO, per-client CORS origin, and the frontend modal/jQuery POST pattern. Use when adding callback or visitor-notification functionality to a client, or debugging callbacks (email not sent but saved).
 ---
 
 # Callback System
@@ -38,19 +38,7 @@ CallbackController
 
 ## Request
 
-```
-POST /api/callback
-Content-Type: application/json
-X-Auth-Token: <injected by Apache>
-X-Caller-Id: <injected by Apache>
-```
-
-```json
-{
-  "address": "visitor@example.com",
-  "product": "https://come-in-and-find-out.ch/pages/details?id=42"
-}
-```
+`POST /api/callback` with a JSON body `{address, product}`; Apache injects `X-Auth-Token` and `X-Caller-Id`. The full request and response shape is in `api.md`.
 
 ## Controller Logic
 

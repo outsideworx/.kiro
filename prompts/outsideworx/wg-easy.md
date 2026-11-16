@@ -148,6 +148,8 @@ systemctl restart systemd-modules-load.service
 
 ## Initial Setup
 
+> Steps 5–6 happen in the wg-easy admin UI and cannot be checked from the repo; they follow wg-easy v15 behaviour as recorded when the service was set up. If the UI differs, trust the UI and update this section.
+
 On a fresh host, in order:
 
 1. `deploy.sh --network <IP>` — overlay networks + kernel modules. Open `51820/udp` on the host firewall (public VPN port, host mode).
