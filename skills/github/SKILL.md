@@ -216,6 +216,7 @@ on:
   push:
 jobs:
   verify:
+    if: ${{ !startsWith(github.event.head_commit.message, 'DOC:') }}
     runs-on: outsideworx
     steps:
       - uses: actions/checkout@v4
@@ -253,6 +254,8 @@ jobs:
 ```
 
 The `workflow_run` trigger chains this after `Verify` succeeds on `main`. Replace `<repo-name>` with the image name.
+
+Commits whose message starts with `DOC:` skip both workflows (see `github-actions.md`, "Skipping CI with `DOC:`").
 
 ## How to Remove a Site from the Pipeline
 

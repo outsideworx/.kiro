@@ -98,7 +98,7 @@ Config files: `authelia.yaml`, `authelia-users.yaml`, `grafana.ini`, `logo.png`,
 
 #### The `utils` Config Tarball
 
-The Python sidecar's scripts are **not** bind-mounted from the host. The whole `utils/` folder (minus the server-only `operations/` shell scripts) is packed into a single tar archive and injected as one Swarm config named `utils`:
+The Python sidecar's scripts are **not** bind-mounted from the host. The whole `utils/` folder is packed into a single tar archive and injected as one Swarm config named `utils`:
 
 ```yaml
 configs:
@@ -111,7 +111,7 @@ configs:
 
 ```bash
 tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
-    -cf utils.tar -C utils --exclude=operations cache.py commons requirements.txt
+    -cf utils.tar -C utils .
 export HASH_UTILS=$(sha256sum utils.tar | cut -c1-8)
 ```
 
@@ -136,7 +136,7 @@ configs:
 
 Why a tarball and not one config per file: Swarm configs are single files, and the sidecar needs a directory tree (`cache.py`, the `commons/` package, `requirements.txt`, and any future files/drafts). A tar is one config that carries the whole tree, so adding a new script needs no new config entry. This replaced the former `./utils:/etc/utils` bind mount, which required the Docker daemon to share the repo's host filesystem — it does not in all environments, so the bind source could appear missing and the `utils` task would be rejected with `invalid mount config ... bind source path does not exist`.
 
-`utils.tar` is a generated build artifact (gitignored); it is regenerated on every `deploy.sh` run. The `operations/` scripts are excluded because they are run manually on the server, not inside the sidecar.
+`utils.tar` is a generated build artifact (gitignored); it is regenerated on every `deploy.sh` run.
 
 #### Adding a New Config
 

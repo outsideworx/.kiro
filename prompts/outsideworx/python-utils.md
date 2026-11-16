@@ -13,7 +13,7 @@ The `utils/` directory houses operational scripts and background services that r
 
 ### Script Delivery
 
-- **Prod**: scripts are **not** bind-mounted. `deploy.sh` packs the `utils/` folder (excluding the server-only `operations/`) into a single deterministic `utils.tar`, injected as one Swarm config named `utils` and mounted at `/etc/utils.tar`. The container extracts it to `/etc/utils` at startup, then runs every top-level `*.py` (skipping `*.draft.py`). A tarball is used because Swarm configs are single files but the sidecar needs a directory tree (`cache.py` + the `commons/` package + `requirements.txt`). Adding a new script needs no compose/`deploy.sh` change — it is picked up from the tar automatically. See `services-deployment.md` → "The `utils` Config Tarball". This replaced the former `./utils:/etc/utils` bind mount, which failed when the Docker daemon did not share the repo's host filesystem (`bind source path does not exist`).
+- **Prod**: scripts are **not** bind-mounted. `deploy.sh` packs the `utils/` folder into a single deterministic `utils.tar`, injected as one Swarm config named `utils` and mounted at `/etc/utils.tar`. The container extracts it to `/etc/utils` at startup, then runs every top-level `*.py` (skipping `*.draft.py`). A tarball is used because Swarm configs are single files but the sidecar needs a directory tree (`cache.py` + the `commons/` package + `requirements.txt`). Adding a new script needs no compose/`deploy.sh` change — it is picked up from the tar automatically. See `services-deployment.md` → "The `utils` Config Tarball". This replaced the former `./utils:/etc/utils` bind mount, which failed when the Docker daemon did not share the repo's host filesystem (`bind source path does not exist`).
 - **Test**: still a plain `./utils:/etc/utils` bind mount (every test service uses bind mounts, and test deliberately runs ALL `*.py` including drafts for live editing). The bind works on a normal dev machine running `docker compose up`.
 
 ### Prod vs Test
@@ -70,34 +70,14 @@ Categories are sorted alphabetically and assigned numeric IDs starting at 1. The
 
 `hashes.properties` uses dot-separated keys: `<site>.<itemId>=<hash>` (e.g., `come-in-and-find-out.42=a1b2c3d4`). The prefix is the site-name subdir, not the DB table name.
 
-## Operations Scripts
-
-Shell scripts in `utils/operations/` — run manually on the server, not part of the sidecar.
-
-### docker-stats.sh
-
-Pretty-prints a table of all running containers with CPU %, RAM (MB), network I/O (GB), color-coded thresholds. Also checks for degraded Swarm services (replicas mismatch).
-
-### docker-wipe.sh
-
-Nuclear option: removes both stacks, all secrets, all images, prunes the system, then runs `apt upgrade`. Cache data lives in the `cache` Docker named volume and is removed by the `docker system prune -af` step. Interactive confirmation required.
-
-### system-swap.sh
-
-Creates a 2GB swap file, persists it to fstab, tunes `vm.swappiness=10` and `vm.vfs_cache_pressure=50`. Idempotent — skips if swap already active.
-
 ## File Layout
 
 ```
 services/utils/
 ├── cache.py                    # Image cache sync (active)
 ├── requirements.txt            # psycopg2-binary
-├── commons/
-│   └── logging_config.py       # Shared logging setup
-└── operations/
-    ├── docker-stats.sh         # Container resource overview
-    ├── docker-wipe.sh          # Full system wipe
-    └── system-swap.sh          # Swap file setup
+└── commons/
+    └── logging_config.py       # Shared logging setup
 ```
 
 ## Environment Variables

@@ -215,9 +215,9 @@ setup_logging("app-name")
 ### Style
 
 - Double quotes around all variable expansions (`"$VAR"`, `"$1"`)
-- `[ ... ]` for test expressions (not `[[ ... ]]` in deploy scripts; `[[ ... ]]` allowed in operations scripts with `bash`)
+- `[ ... ]` for test expressions (not `[[ ... ]]` in deploy scripts)
 - `$(command)` for command substitution (not backticks)
-- No function keyword: `function_name() { ... }` (only in docker-stats.sh for utilities)
+- No function keyword: `function_name() { ... }`
 - `echo` for simple output, `printf` for formatted output
 - Color codes as uppercase constants (`RED`, `GREEN`, `BOLD`, `RESET`)
 - `awk "BEGIN {...}"` for arithmetic (not `bc` or `$((...))` for floats)
