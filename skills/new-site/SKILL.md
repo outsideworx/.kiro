@@ -1,6 +1,6 @@
 ---
 name: new-site
-description: Scaffold a new website — static Apache HTML/CSS/JS repo or dynamic npm app — and register it in the platform. Use whenever the user wants to add, create, or set up a site, landing page, or frontend for a client; pick a splash/mobile/single-page entry pattern; write hotspot navigation or API fetch scripts; or wire a new site into sites/compose.yaml, Traefik, the build matrix, Prometheus, or the services_cache volume, including which network (edge vs outsideworx) it should join. Not for explaining how the existing network or stack works.
+description: Scaffold a new website — static Apache HTML/CSS/JS repo or dynamic npm app and register it in the platform. Use whenever the user wants to add, create, or set up a site, landing page, or frontend for a client; pick a splash/mobile/single-page entry pattern; write hotspot navigation or API fetch scripts; or wire a new site into sites/compose.yaml, Traefik, the build matrix, Prometheus, or the services_cache volume, including which network (edge vs outsideworx) it should join. Not for explaining how the existing network or stack works.
 ---
 
 # New Site
