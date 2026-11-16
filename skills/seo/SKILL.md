@@ -1,6 +1,6 @@
 ---
 name: seo
-description: SEO and health-check conventions for static site repos: robots.txt (Disallow-all + Allow whitelist), sitemap.xml (loc, lastmod), metrics.txt ('up 1'), and the HTML meta tags (description, author, robots) for content, splash and WIP pages. Use when creating a site repo or touching robots.txt, sitemap.xml, metrics.txt, meta tags, crawling or indexing. Not for the tunde-divat npm app.
+description: SEO and health-check conventions for static site repos — robots.txt (Disallow-all + Allow whitelist), sitemap.xml (loc, lastmod), metrics.txt ('up 1'), and the HTML meta tags (description, author, robots) for content, splash and WIP pages. Use when creating a site repo or touching robots.txt, sitemap.xml, metrics.txt, meta tags, crawling or indexing. Not for the tunde-divat npm app.
 ---
 
 # SEO

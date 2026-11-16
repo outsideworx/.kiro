@@ -1,6 +1,6 @@
 ---
 name: liquibase
-description: Liquibase changelog conventions for the services project: changelog-master includes, NNN-description.yaml naming, raw-SQL changesets, and PostgreSQL hash-trigger changesets for tables with base64 image columns synced by cache.py. Use whenever the user adds or changes a database table, column, sequence or trigger, or asks whether a table needs a hash column. Also for any Liquibase changeset, migration or add-column change.
+description: Liquibase changelog conventions for the services project — changelog-master includes, NNN-description.yaml naming, raw-SQL changesets, and PostgreSQL hash-trigger changesets for tables with base64 image columns synced by cache.py. Use whenever the user adds or changes a database table, column, sequence or trigger, or asks whether a table needs a hash column. Also for any Liquibase changeset, migration or add-column change.
 ---
 
 # Liquibase Changelog Conventions

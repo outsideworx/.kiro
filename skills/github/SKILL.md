@@ -1,6 +1,6 @@
 ---
 name: github
-description: GitHub repo and CI/CD setup: create a site repo, repo settings and branch protection, build/verify/deploy.yaml workflow templates, repository_dispatch wiring (build-sites, update-submodule, the Dockerfile.npm type payload), and adding or removing a site from the build pipeline. Use whenever the user mentions a new repo, GitHub Actions, workflows, dispatch, branch protection, or why a push didn't build or deploy. Compose/Prometheus wiring belongs to new-site.
+description: GitHub repo and CI/CD setup — create a site repo, repo settings and branch protection, build/verify/deploy.yaml workflow templates, repository_dispatch wiring (build-sites, update-submodule, the Dockerfile.npm type payload), and adding or removing a site from the build pipeline. Use whenever the user mentions a new repo, GitHub Actions, workflows, dispatch, branch protection, or why a push didn't build or deploy. Compose/Prometheus wiring belongs to new-site.
 ---
 
 # GitHub

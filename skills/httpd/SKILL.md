@@ -1,6 +1,6 @@
 ---
 name: httpd
-description: Apache httpd conventions for the shared sites Dockerfile: proxy to services, response headers (CSP, Permissions-Policy, X-Frame-Options), RemoteIP/Traefik trust, rate limits, output limits and timeouts, RedirectMatch 403 blocks, redirects, modules, entrypoint (TOKEN). Use whenever the user wants to change Apache behaviour for the sites — add a header, loosen the CSP for fonts or a CDN, block a file type like .bak, raise a rate limit or timeout, add a redirect, enable a module — even if they never say 'httpd'.
+description: Apache httpd conventions for the shared sites Dockerfile — proxy to services, response headers (CSP, Permissions-Policy, X-Frame-Options), RemoteIP/Traefik trust, rate limits, output limits and timeouts, RedirectMatch 403 blocks, redirects, modules, entrypoint (TOKEN). Use whenever the user wants to change Apache behaviour for the sites — add a header, loosen the CSP for fonts or a CDN, block a file type like .bak, raise a rate limit or timeout, add a redirect, enable a module — even if they never say 'httpd'.
 ---
 
 # Apache httpd — Sites Configuration

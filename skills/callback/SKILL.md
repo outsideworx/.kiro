@@ -1,6 +1,6 @@
 ---
 name: callback
-description: Contact form callback system: a visitor leaves contact info about a product, an 'someone is interested' notification email goes out via EmailGateway/MailerSend, and the callback is persisted to the CALLBACK table even if the email fails. Covers CallbackController, the Callback DTO, per-client CORS origin, and the frontend modal/jQuery POST pattern. Use when adding callback or visitor-notification functionality to a client, or debugging callbacks (email not sent but saved).
+description: Contact form callback system — a visitor leaves contact info about a product, an 'someone is interested' notification email goes out via EmailGateway/MailerSend, and the callback is persisted to the CALLBACK table even if the email fails. Covers CallbackController, the Callback DTO, per-client CORS origin, and the frontend modal/jQuery POST pattern. Use when adding callback or visitor-notification functionality to a client, or debugging callbacks (email not sent but saved).
 ---
 
 # Callback System

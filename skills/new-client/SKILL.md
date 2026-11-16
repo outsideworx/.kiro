@@ -1,6 +1,6 @@
 ---
 name: new-client
-description: Onboard a new client that needs API access and database storage: Authelia user, application.yaml client entry, API tokens (compose/.env for services and sites), ntfy user, naming of client key, caller id and table, and the Spring Boot Entity/Repository/Converter/ApiController/Controller pattern. Use when adding a client or endpoint, or when a client's login redirect-loops. Delegates admin views to admin-portal, schema to liquibase, and site/compose wiring to new-site.
+description: Onboard a new client that needs API access and database storage — Authelia user, application.yaml client entry, API tokens (compose/.env for services and sites), ntfy user, naming of client key, caller id and table, and the Spring Boot Entity/Repository/Converter/ApiController/Controller pattern. Use when adding a client or endpoint, or when a client's login redirect-loops. Delegates admin views to admin-portal, schema to liquibase, and site/compose wiring to new-site.
 ---
 
 # New Client Registration
