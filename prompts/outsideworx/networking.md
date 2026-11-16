@@ -2,7 +2,7 @@
 
 ## Overlay Networks
 
-Two Docker overlay networks connect containers across both stacks. Both are external and attachable — created once during initial Swarm setup (`deploy.sh --network`):
+Two Docker overlay networks connect containers across both stacks. Both are external and attachable — created during initial Swarm setup (`deploy.sh --network`), each only if it does not already exist:
 
 ```yaml
 networks:

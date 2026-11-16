@@ -21,7 +21,7 @@ The deployment script handles both initial setup and updates.
 |------|--------|
 | `--install` | Installs `docker-compose-v2`, `git`, `maven`, `npm`, `openjdk-25-jdk` via apt |
 | `--host <user@server>` | Remote execution: copies the script to `~/` on the target via `scp` and runs it there over `ssh`. Must be the first parameter and may only be followed by `--network` (e.g. `--host user@server --network <IP>`); any other combination is rejected, since `--secrets` must run on the Swarm manager it targets and the plain deployment needs the repo's config files and `.env` |
-| `--network` | Initializes Swarm (`docker swarm init --advertise-addr <IP>`), creates both overlay networks (`edge`, `outsideworx`), and loads the iptables kernel modules wg-easy needs (`/etc/modules-load.d/wg-easy.conf`) |
+| `--network` | Initializes Swarm (`docker swarm init --advertise-addr <IP>`; skipped with a warning when no IP is given), creates each missing overlay network (`edge`, `outsideworx`; existing ones are left alone, so it is safe to re-run after a prune removed one), and loads the iptables kernel modules wg-easy needs (`/etc/modules-load.d/wg-easy.conf`) |
 | `--secrets` | Generates `wg_metrics_token` (printed once — must be entered in the wg-easy admin UI) and the RSA 4096 key, stores both as Docker secrets |
 | (no flag) | Deploys/updates the stack |
 
@@ -39,7 +39,7 @@ The deployment script handles both initial setup and updates.
 ### Prerequisites
 
 - Docker Swarm initialized (`--network` flag, requires IP address)
-- Both overlay networks created (`--network` flag)
+- Both overlay networks created if missing (`--network` flag)
 - Secrets created (`--secrets` flag): `rsa_private_key`, `wg_metrics_token`
 - Host firewall: `51820/udp` open (wg-easy VPN tunnel)
 - `.env` file present in repo root with all required variables
