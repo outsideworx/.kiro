@@ -235,7 +235,6 @@ setup_logging("app-name")
 - `cp` with multiple source files on one line (alphabetical)
 - `mkdir -p` for directory creation (no error if exists)
 - Docker commands: `docker stack deploy -c compose.yaml <stack> --detach=false --resolve-image=always`
-- Force-update pattern: `docker stack services <stack> --format '{{.Name}}' | xargs -I{} docker service update --force {}`
 
 ## General Style
 

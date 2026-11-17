@@ -31,7 +31,6 @@ The deployment script handles both initial setup and updates.
 3. Builds `utils.tar` from the `utils/` scripts (see "The `utils` Config Tarball") and hashes it
 4. `docker login ghcr.io` (user `outsideworx`, password `$DISPATCH_TOKEN`), then `docker compose pull`
 5. `docker stack deploy -c compose.yaml services --detach=false --resolve-image=always`
-6. Force-updates all services (rolling restart)
 
 `deploy.sh` deploys in place from the repo directory — it does **not** copy files to a separate deploy directory. Everything the stack needs is either a Swarm config (file content injected from the repo, no host path dependency) or a named volume. This matters because the Docker daemon resolves bind-mount and config `file:` paths from its own filesystem view; the `utils` scripts are shipped as a config (not a bind mount) so the sidecar does not depend on the daemon sharing the repo's host path.
 

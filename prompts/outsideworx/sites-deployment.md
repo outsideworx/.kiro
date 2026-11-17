@@ -153,7 +153,6 @@ Simple deployment — no Swarm init needed (uses the network created by services
 1. Sources `.env`
 2. `docker compose pull`
 3. `docker stack deploy -c compose.yaml sites --detach=false --resolve-image=always`
-4. Force-updates all services
 
 Like the services `deploy.sh`, this deploys in place from the repo directory — it does **not** copy files to a separate deploy directory. The sites stack has no host bind mounts or config `file:` dependencies (`blacklist.conf` is baked into the image at Docker build time, not mounted), so nothing needs the Docker daemon to share the repo's host path.
 
